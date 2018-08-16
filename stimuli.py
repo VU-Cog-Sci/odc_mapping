@@ -1,7 +1,41 @@
 import numpy as np
 import psychopy
+from psychopy.visual import Line
+from psychopy.tools.unittools import radians
 
-class Checkerboard(object):
+
+class ImageBased(object):
+
+    def __init__(self,
+                 win,
+                 size,
+                 pos,
+                 ori=0,
+                 *args,
+                 **kwargs):
+
+        self.win = win
+        self.size = size
+
+        self._array, self._mask = self._get_array()
+
+        self._stim = psychopy.visual.ImageStim(
+            self.win,
+            self._array,
+            size=size,
+            pos=pos,
+            mask=self._mask,
+            ori=ori,
+            *args,
+            **kwargs)
+
+    def draw(self):
+        self._stim.draw()
+
+    def _get_array(self):
+        pass
+
+class Checkerboard(ImageBased):
     """Create an instance of a `Checkerboard` object.
     Parameters
     ----------
@@ -12,24 +46,19 @@ class Checkerboard(object):
     kwds : keyword arguments to psychopy.visual.ImageStim
     """
 
-    def __init__(self, win, side_len=8, inverted=False, size=16, mask=None, **kwds):
-        self.win = win
+    def __init__(self,
+                 win,
+                 pos,
+                 side_len=8,
+                 inverted=False,
+                 size=16,
+                 mask=None,
+                 ori=0):
+
         self.side_len = side_len
         self.inverted = inverted
-        self.size = size
 
-        self._array, self._mask = self._get_array()
-
-        print(self.size)
-
-        self._stim = psychopy.visual.ImageStim(
-            self.win,
-            self._array,
-            size=size,
-            mask=self._mask,
-        **kwds)
-
-        print('board', self._array.shape)
+        super(Checkerboard, self).__init__(win, size, pos, ori=ori)
 
     def _get_array(self, mask='circle', upscale=None):
         """Return square `np.ndarray` of alternating ones and negative ones
@@ -62,33 +91,25 @@ class Checkerboard(object):
         self._stim.draw()
 
 
-class Rim(object):
+class Rim(ImageBased):
 
     def __init__(self, win,
                  inner_radius,
                  outer_radius,
                  n_bars,
+                 pos,
                  *args,
                  **kwargs):
 
-        self.win = win
-        
         self.inner_radius = inner_radius
         self.outer_radius = outer_radius
         self.n_bars = n_bars
 
-        self._array, self._mask = self._get_array()
-        
-        self._stim = psychopy.visual.ImageStim(
-            self.win,
-            self._array,
-            size=self._array.shape,
-            mask=self._mask,
-            contrast=0.5,
-            *args,
-            **kwargs)
-
-
+        super(Rim, self).__init__(win, 
+                                  size=outer_radius*2+1,
+                                  pos=pos,
+                                  *args,
+                                  **kwargs)
 
     def _get_array(self):
         x = np.linspace(-self.outer_radius,
@@ -112,6 +133,52 @@ class Rim(object):
 
         return rim, mask
 
+class Cross(object):
+
+    def __init__(self,
+                 win,
+                 width, 
+                 pos=[0,0],
+                 ori=0,
+                 height=None, 
+                 lineWidth=1,
+                 *args,
+                 **kwargs):
+
+        if height is None:
+            height = width
+        
+        #if ori != 0:
+            #raise NotImplementedError()
+
+        ori = radians(ori)
+
+        pos1 = np.array([-np.cos(ori)*width/2, np.sin(ori)*height/2])
+        pos1 += pos
+        pos2 = np.array([np.cos(ori)*width/2, -np.sin(ori)*height/2])
+        pos2 += pos
+
+        pos3 = np.array([np.sin(ori)*width/2, np.cos(ori)*height/2])
+        pos3 += pos
+        pos4 = np.array([-np.sin(ori)*width/2, -np.cos(ori)*height/2])
+        pos4 += pos
+
+        self.line1 = Line(win,
+                          start=pos1,
+                          end=pos2,
+                          lineWidth=lineWidth,
+                          *args,
+                          **kwargs)
+
+        self.line2 = Line(win,
+                          start=pos3,
+                          end=pos4,
+                          lineWidth=lineWidth,
+                          *args,
+                          **kwargs)
+
     def draw(self):
-        """Draw Rim object."""
-        self._stim.draw()
+        self.line1.draw()
+        self.line2.draw()
+
+

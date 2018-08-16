@@ -13,9 +13,11 @@ global:
   positions:
     x_offset_left_eye: 0
     y_offset_left_eye: 0
-    x_offset_right_eye: 2
-    y_offset_right_eye: 5
+    x_offset_right_eye: 0
+    y_offset_right_eye: 0
 
     left_size: 15
     scale_left_right: 1.02
 
+  cross:
+    linewidth: .1

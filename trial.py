@@ -17,8 +17,12 @@ class PositioningTrial(Trial):
 
     def draw(self):
         self.session.left_rim.draw()
+        self.session.right_rim.draw()
         self.session.left_grating.draw()
-        self.session.right_grating.draw()
+        #self.session.right_grating.draw()
+
+        self.session.left_cross.draw()
+        self.session.right_cross.draw()
 
         super(PositioningTrial, self).draw()
 
