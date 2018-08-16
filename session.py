@@ -1,5 +1,5 @@
 from exptools.core.session import MRISession
-from stimuli import Checkerboard, Rim, Cross
+from stimuli import StimulusSet
 from trial import PositioningTrial
 import numpy as np
 
@@ -33,51 +33,18 @@ class ODCSession(MRISession):
         self.left_size = self.deg2pix(self.config.get('positions',
                                                       'left_size'))
 
-        lr_scale = self.config.get('positions', 'scale_left_right')
-        self.right_size = self.left_size * lr_scale
+        self.right_size = self.deg2pix(self.config.get('positions',
+                                                      'right_size'))
 
-        self.left_grating = Checkerboard(self.screen,
-                                         pos=self.left_pos,
-                                         ori=10,
-                                         size=self.left_size)
-        self.right_grating = Checkerboard(self.screen,
-                                          ori=10,
-                                         pos=self.right_pos,
-                                         size=self.left_size * lr_scale)
+        self.left_stimulus = StimulusSet(self.screen, 
+                                         self.left_pos,
+                                         self.left_size,
+                                         self)
 
-        self.left_rim = Rim(self.screen,
-                           self.left_size/2 - 1,
-                           self.left_size/2 * 1.1,
-                           16,
-                           pos=self.left_pos,
-                           contrast=0.5)
-
-        self.right_rim = Rim(self.screen,
-                           self.right_size/2 - 1,
-                           self.right_size/2 * 1.1,
-                           16,
-                           pos=self.right_pos,
-                           contrast=0.5)
-
-        lw = self.deg2pix(self.config.get('cross', 'linewidth'))
-
-        self.left_cross = Cross(self.screen,
-                                self.left_size,
-                                contrast=1,
-                                pos=self.left_pos,
-                                lineColor=(1, -1, -1),
-                                lineWidth=lw,
-                                )
-
-        self.right_cross = Cross(self.screen,
-                                self.right_size,
-                                contrast=1,
-                                pos=self.right_pos,
-                                lineColor=(1, -1, -1),
-                                lineWidth=lw,
-                                )
-
-
+        self.right_stimulus = StimulusSet(self.screen,
+                                         self.right_pos,
+                                         self.right_size,
+                                         self)
 
     def run(self):
         """run the session"""

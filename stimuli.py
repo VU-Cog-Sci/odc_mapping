@@ -35,7 +35,7 @@ class ImageBased(object):
     def _get_array(self):
         pass
 
-class Checkerboard(ImageBased):
+class CheckerBoard(ImageBased):
     """Create an instance of a `Checkerboard` object.
     Parameters
     ----------
@@ -53,12 +53,14 @@ class Checkerboard(ImageBased):
                  inverted=False,
                  size=16,
                  mask=None,
-                 ori=0):
+                 ori=0,
+                 *args,
+                 **kwargs):
 
         self.side_len = side_len
         self.inverted = inverted
 
-        super(Checkerboard, self).__init__(win, size, pos, ori=ori)
+        super(CheckerBoard, self).__init__(win, size, pos, ori=ori, *args, **kwargs)
 
     def _get_array(self, mask='circle', upscale=None):
         """Return square `np.ndarray` of alternating ones and negative ones
@@ -182,3 +184,125 @@ class Cross(object):
         self.line2.draw()
 
 
+class CheckerBoardCross(ImageBased):
+
+    def __init__(self,
+                 win,
+                 size,
+                 pos=[0,0],
+                 ori=0,
+                 side_len=16,
+                 n_blocks=2,
+                 inverted=False,
+                 height=None):
+       
+        if (side_len % 2 == 0) & (n_blocks % 2 == 1):
+            raise ValueError('side_len should be even!')
+
+        if (side_len % 2 == 1) & (n_blocks % 2 == 0):
+            raise ValueError('side_len should be uneven!')
+        
+        self.side_len = side_len
+        self.n_blocks = n_blocks
+        self.inverted = inverted
+        
+        super(CheckerBoardCross, self).__init__(win,
+                                                size,
+                                                pos,
+                                                ori)
+        
+
+    def _get_array(self, upscale=None):
+        """Return square `np.ndarray` of alternating ones and negative ones
+        with shape `(self.side_len, self.side_len)`."""
+        board = np.ones((self.side_len, self.side_len), dtype=np.int32)
+        board[::2, ::2] = -1
+        board[1::2, 1::2] = -1
+
+        cross = np.ones((self.side_len, self.side_len)) * -1
+
+        low_ix = self.side_len / 2 - self.n_blocks / 2
+        high_ix = low_ix + self.n_blocks
+
+        cross[low_ix:high_ix, :] = 1
+        cross[:, low_ix:high_ix] = 1
+
+        if upscale is None:
+            upscale = np.ceil(self.size / self.side_len)
+
+        if upscale != 1:
+            board = np.repeat(np.repeat(board, upscale, axis=0),
+                              upscale, axis=1)
+            cross = np.repeat(np.repeat(cross, upscale, axis=0),
+                              upscale, axis=1)
+
+        board = board if not self.inverted else board * -1
+
+        return board, cross
+
+    def draw(self):
+        """Draw checkerboard object."""
+        self._stim.draw()
+
+
+class StimulusSet(object):
+
+
+    def __init__(self,
+                 win,
+                 pos,
+                 size,
+                 session,
+                 ori=0):
+
+        self.screen = win
+        self.size = size
+        self.pos = pos
+        self.ori = ori
+        self.config = session.config
+        self.session = session
+
+        self.hide = False
+
+        self.checkerboard = CheckerBoard(self.screen,
+                                         size=size /
+                                              self.config.get('checker_cross', 
+                                                         'ratio_to_circle'),
+                                         pos=pos,
+                                         ori=ori)
+
+
+        rim_radius = size / 2 / self.config.get('checker_cross',
+                                                'ratio_to_circle')
+
+        self.rim = Rim(self.screen,
+                       rim_radius,
+                       rim_radius * self.config.get('rim', 'rim_ratio'),
+                       self.config.get('rim', 'n_parts'),
+                       pos=self.pos,
+                       contrast=self.config.get('rim', 'contrast'),
+                       ori=ori)
+
+        lw = self.session.deg2pix(self.config.get('cross', 'linewidth'))
+
+        self.cross = Cross(self.screen,
+                           self.size,
+                           pos=self.pos,
+                           lineColor=self.config.get('cross', 'color'),
+                           lineWidth=lw,
+                           ori=ori,
+                           )
+
+        self.check_cross = CheckerBoardCross(self.screen,
+                                             self.size,
+                                             side_len=32,
+                                             n_blocks=4,
+                                             pos=self.pos,
+                                             ori=ori)
+
+    def draw(self):
+        if not self.hide:
+            self.check_cross.draw()
+            self.checkerboard.draw()
+            self.rim.draw()
+            self.cross.draw()

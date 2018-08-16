@@ -17,7 +17,22 @@ global:
     y_offset_right_eye: 0
 
     left_size: 15
-    scale_left_right: 1.02
+    right_size: 15
 
   cross:
     linewidth: .1
+    color: [1, -1, -1]
+
+  rim:
+    contrast: 0.5
+    rim_ratio: 1.1
+    n_parts: 16
+
+  checker_cross:
+    ratio_to_circle: 1.3
+    n_sides: 32
+    n_blocks: 4
+
+  buttons:
+    keys: ['a', 's', 'd', 'f']
+
