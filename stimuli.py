@@ -11,6 +11,7 @@ class ImageBased(object):
                  size,
                  pos,
                  ori=0,
+                 contrast = 1,
                  *args,
                  **kwargs):
 
@@ -29,11 +30,22 @@ class ImageBased(object):
             *args,
             **kwargs)
 
+        self.contrast = contrast
+
     def draw(self):
         self._stim.draw()
 
     def _get_array(self):
         pass
+
+    @property
+    def contrast(self):
+        return self._stim.contrast
+
+    @contrast.setter
+    def contrast(self, value):
+        self._stim.contrast = value
+
 
 class CheckerBoard(ImageBased):
     """Create an instance of a `Checkerboard` object.
@@ -52,6 +64,7 @@ class CheckerBoard(ImageBased):
                  side_len=8,
                  inverted=False,
                  size=16,
+                 cyclesperdegree=1,
                  mask=None,
                  ori=0,
                  *args,
@@ -253,26 +266,29 @@ class StimulusSet(object):
                  pos,
                  size,
                  session,
-                 ori=0):
+                 ori=0,
+                 hide=False):
 
         self.screen = win
-        self.size = size
-        self.pos = pos
-        self.ori = ori
         self.config = session.config
         self.session = session
 
-        self.hide = False
+        self.size = self.session.deg2pix(size)
+        self.pos = [self.session.deg2pix(pos[0]), self.session.deg2pix(pos[1])]
+
+        self.ori = ori
+
+        self.hide = hide
 
         self.checkerboard = CheckerBoard(self.screen,
-                                         size=size /
+                                         size=self.size /
                                               self.config.get('checker_cross', 
                                                          'ratio_to_circle'),
-                                         pos=pos,
+                                         pos=self.pos,
                                          ori=ori)
 
 
-        rim_radius = size / 2 / self.config.get('checker_cross',
+        rim_radius = self.size / 2 / self.config.get('checker_cross',
                                                 'ratio_to_circle')
 
         self.rim = Rim(self.screen,

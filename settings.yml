@@ -10,7 +10,8 @@ global:
     wait_blanking: True
     mouse_visible: False
     screen_nr: 2
-  positions:
+
+  stimuli:
     x_offset_left_eye: 0
     y_offset_left_eye: 0
     x_offset_right_eye: 0
@@ -18,7 +19,7 @@ global:
 
     left_size: 15
     right_size: 15
-
+       
   cross:
     linewidth: .1
     color: [1, -1, -1]
@@ -35,4 +36,3 @@ global:
 
   buttons:
     keys: ['a', 's', 'd', 'f']
-
