@@ -13,9 +13,9 @@ global:
 
   stimuli:
     x_offset_left_eye: 0
-    y_offset_left_eye: 0
+    y_offset_left_eye: -5
     x_offset_right_eye: 0
-    y_offset_right_eye: 0
+    y_offset_right_eye: -5
 
     left_size: 15
     right_size: 15
