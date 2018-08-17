@@ -1,6 +1,6 @@
 import numpy as np
 import psychopy
-from psychopy.visual import Line
+from psychopy.visual import Line, GratingStim
 from psychopy.tools.unittools import radians
 
 
@@ -257,6 +257,42 @@ class CheckerBoardCross(ImageBased):
         """Draw checkerboard object."""
         self._stim.draw()
 
+class FixationPoint(object):
+
+    def __init__(self,
+                 win,
+                 pos,
+                 size,
+                 color=(1,0,0)):
+
+        self.screen = win
+
+        self.fixation_stim1 = GratingStim(win,
+                                          sf=0,
+                                          color=[1, 1, 1],
+                                          mask='circle',
+                                          pos=pos,
+                                          size=size)
+
+        self.fixation_stim2 = GratingStim(win,
+                                          sf=0,
+                                          color=[-1, -1, -1],
+                                          mask='circle',
+                                          pos=pos,
+                                          size=0.66*size)
+
+
+
+        self.fixation_stim3 = GratingStim(win,
+                                          sf=0,
+                                          color=color,
+                                          mask='circle',
+                                          pos=pos,
+                                          size=0.33*size)
+    def draw(self):
+        self.fixation_stim1.draw()
+        self.fixation_stim2.draw()
+        self.fixation_stim3.draw()
 
 class StimulusSet(object):
 
@@ -316,9 +352,18 @@ class StimulusSet(object):
                                              pos=self.pos,
                                              ori=ori)
 
+        fixation_size = self.session.deg2pix(self.config.get('fixation',
+                                                             'size'))
+
+        self.fixation = FixationPoint(self.screen,
+                                      self.pos,
+                                      fixation_size)
+
     def draw(self):
         if not self.hide:
             self.check_cross.draw()
             self.checkerboard.draw()
             self.rim.draw()
+            self.fixation.draw()
             self.cross.draw()
+

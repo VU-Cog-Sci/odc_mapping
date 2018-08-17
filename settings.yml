@@ -29,6 +29,9 @@ global:
     rim_ratio: 1.1
     n_parts: 16
 
+  fixation:
+    size: 1
+
   checker_cross:
     ratio_to_circle: 1.3
     n_sides: 32
