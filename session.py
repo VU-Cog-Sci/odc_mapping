@@ -1,6 +1,6 @@
 from exptools.core.session import MRISession
-from stimuli import StimulusSet
-from trial import PositioningTrial
+from stimuli import StimulusSet, StimulusSetToPosition
+from trial import PositioningTrial, StimulationTrial
 import numpy as np
 import glob
 import pandas as pd
@@ -11,36 +11,45 @@ class ODCSession(MRISession):
         super(MRISession, self).__init__(*args, **kwargs)
 
         settings = self.find_settings_subject()
+
         if settings is None:
             settings = self.get_default_settings()
 
-        self.setup_stimuli(settings)
-        self.positioning_trial = PositioningTrial(session=self)
+        self.framerate = self.config.get('screen', 'framerate')
+
+        self.positioning_trial = PositioningTrial(session=self,
+                                                  settings=settings)
+
+
+        #self.stimulus_trial = StimulationTrial(ID=1,
+                                               #session=self)
 
 
     
-    def setup_stimuli(self, settings):
-        """setup_stimuli creates all stimuli that do not change from trial to trial"""
+    #def setup_stimuli(self, settings):
+        #"""setup_stimuli creates all stimuli that do not change from trial to trial"""
 
 
-        self.left_stimulus = StimulusSet(self.screen,
-                                         [settings['left_x'],
-                                          settings['left_y']],
-                                         settings['left_size'],
-                                         self,
-                                         ori=settings['left_ori'])
+        #self.left_stimulus = StimulusSetToPosition(self.screen,
+                                         #[settings['left_x'],
+                                          #settings['left_y']],
+                                         #settings['left_size'],
+                                         #self,
+                                         #ori=settings['left_ori'])
 
-        self.right_stimulus = StimulusSet(self.screen,
-                                         [settings['right_x'],
-                                          settings['right_y']],
-                                         settings['right_size'],
-                                         self,
-                                         ori=settings['right_ori'])
+        #self.right_stimulus = StimulusSetToPosition(self.screen,
+                                         #[settings['right_x'],
+                                          #settings['right_y']],
+                                         #settings['right_size'],
+                                         #self,
+                                         #ori=settings['right_ori'])
         
     def run(self):
         """run the session"""
 
         self.positioning_trial.run()
+
+        #self.stimulus_trial.run()
 
         self.stop()
         self.close()
