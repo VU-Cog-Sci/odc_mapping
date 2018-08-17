@@ -1,24 +1,25 @@
 global:
   screen:
-    size: [1600, 1200]
+    size: [2560, 1440]
     full_screen: False
     background_color: [-1, -1, -1]
     gamma_scale: [2.475,2.25,2.15]
-    physical_screen_size: [60, 34]
-    physical_screen_distance: 50
+    physical_screen_size: [58, 36]
+    physical_screen_distance: 60
     max_lums: [24.52, 78.8, 10.19]
     wait_blanking: True
     mouse_visible: False
     screen_nr: 2
+    framerate: 60
 
   stimuli:
     x_offset_left_eye: 0
-    y_offset_left_eye: -5
+    y_offset_left_eye: 0
     x_offset_right_eye: 0
-    y_offset_right_eye: -5
+    y_offset_right_eye: 0
 
-    left_size: 15
-    right_size: 15
+    left_size: 10
+    right_size: 10
        
   cross:
     linewidth: .1
@@ -39,3 +40,8 @@ global:
 
   buttons:
     keys: ['a', 's', 'd', 'f']
+
+  timing:
+    stimulus_length: 12
+
+
