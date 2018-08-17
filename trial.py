@@ -70,6 +70,7 @@ class PositioningTrial(Trial):
                     [-99, self.session.clock.getTime() - self.start_time])
 
                 self.stopped = True
+                self.session.stopped = True
                 print 'run canceled by user'
 
             elif ev == self.session.config.get('buttons', 'keys')[3]:
