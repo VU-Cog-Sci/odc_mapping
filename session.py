@@ -8,9 +8,11 @@ import pandas as pd
 class ODCSession(MRISession):
 
     def __init__(self, *args, **kwargs):
-        super(MRISession, self).__init__(*args, **kwargs)
+        super(ODCSession, self).__init__(*args, **kwargs)
 
         parameters = self.find_parameters_subject()
+
+        print(parameters)
 
         if parameters is None:
             parameters = self.get_default_parameters()
@@ -19,12 +21,22 @@ class ODCSession(MRISession):
 
         self.positioning_trial = PositioningTrial(session=self,
                                                   parameters=parameters)
+        #print('yoooo', self.mri_trigger_key)
 
         
     def run(self):
         """run the session"""
 
         self.positioning_trial.run()
+
+        parameters = self.positioning_trial.parameters
+        parameters['flicker_frequency'] = self.config.get('task', 'flicker_frequency')
+        parameters['rotations_per_second'] = self.config.get('task', 'rotations_per_second')
+
+        self.flicker_trial = StimulationTrial(session=self,
+                                              parameters=parameters)
+
+        self.flicker_trial.run()
 
         self.stop()
         self.close()
@@ -40,7 +52,6 @@ class ODCSession(MRISession):
         fn = fns[-1]
 
         data = pd.read_table(fn, index_col=0)
-        print(data)
 
         return data.iloc[0].to_dict()
 

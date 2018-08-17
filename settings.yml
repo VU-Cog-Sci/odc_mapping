@@ -43,5 +43,11 @@ global:
 
   timing:
     stimulus_length: 12
+    trial_length: 24
 
+  task:
+    flicker_frequency: 8
+    rotations_per_second: 0.33
 
+  mri:
+    mri_trigger_key: 't'

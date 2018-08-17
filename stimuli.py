@@ -46,6 +46,14 @@ class ImageBased(object):
     def contrast(self, value):
         self._stim.contrast = value
 
+    @property
+    def ori(self):
+        return self._stim.ori
+
+    @contrast.setter
+    def ori(self, value):
+        self._stim.ori = value
+
 
 class CheckerBoard(ImageBased):
     """Create an instance of a `Checkerboard` object.
@@ -325,7 +333,7 @@ class StimulusSet(object):
 
 
         rim_radius = self.size / 2 / self.config.get('checker_cross',
-                                                'ratio_to_circle')
+                                                'ratio_to_circle') - 1
 
         self.rim = Rim(self.screen,
                        rim_radius,
@@ -355,7 +363,6 @@ class StimulusSet(object):
             self.checkerboard.draw()
             self.rim.draw()
             self.fixation.draw()
-            self.cross.draw()
 
 class StimulusSetToPosition(StimulusSet):
 
