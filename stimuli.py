@@ -343,8 +343,7 @@ class StimulusSet(object):
                                              pos=self.pos,
                                              ori=ori)
 
-        fixation_size = self.session.deg2pix(self.config.get('fixation',
-                                                             'size'))
+        fixation_size = self.config.get('fixation', 'proportion') * self.size
 
         self.fixation = FixationPoint(self.screen,
                                       self.pos,
