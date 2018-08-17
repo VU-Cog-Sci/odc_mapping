@@ -10,52 +10,27 @@ class ODCSession(MRISession):
     def __init__(self, *args, **kwargs):
         super(MRISession, self).__init__(*args, **kwargs)
 
-        settings = self.find_settings_subject()
+        parameters = self.find_parameters_subject()
 
-        if settings is None:
-            settings = self.get_default_settings()
+        if parameters is None:
+            parameters = self.get_default_parameters()
 
         self.framerate = self.config.get('screen', 'framerate')
 
         self.positioning_trial = PositioningTrial(session=self,
-                                                  settings=settings)
+                                                  parameters=parameters)
 
-
-        #self.stimulus_trial = StimulationTrial(ID=1,
-                                               #session=self)
-
-
-    
-    #def setup_stimuli(self, settings):
-        #"""setup_stimuli creates all stimuli that do not change from trial to trial"""
-
-
-        #self.left_stimulus = StimulusSetToPosition(self.screen,
-                                         #[settings['left_x'],
-                                          #settings['left_y']],
-                                         #settings['left_size'],
-                                         #self,
-                                         #ori=settings['left_ori'])
-
-        #self.right_stimulus = StimulusSetToPosition(self.screen,
-                                         #[settings['right_x'],
-                                          #settings['right_y']],
-                                         #settings['right_size'],
-                                         #self,
-                                         #ori=settings['right_ori'])
         
     def run(self):
         """run the session"""
 
         self.positioning_trial.run()
 
-        #self.stimulus_trial.run()
-
         self.stop()
         self.close()
     
 
-    def find_settings_subject(self):
+    def find_parameters_subject(self):
 
         fns = sorted(glob.glob('data/{}*.tsv'.format(self.subject_initials)))
 
@@ -70,7 +45,7 @@ class ODCSession(MRISession):
         return data.iloc[0].to_dict()
 
     
-    def get_default_settings(self):
+    def get_default_parameters(self):
 
         x_offset_left_eye = self.config.get('stimuli', 'x_offset_left_eye')
         y_offset_left_eye = self.config.get('stimuli', 'y_offset_left_eye')

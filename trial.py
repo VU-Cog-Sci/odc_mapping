@@ -12,7 +12,7 @@ class StimulationTrial(Trial):
                  flicker_frequency=8,
                  eyes='both',
                  session=None,
-                 settings=None,
+                 parameters={},
                  *args, 
                  **kwargs):
         
@@ -24,10 +24,11 @@ class StimulationTrial(Trial):
             self).__init__(ID=ID,
                            phase_durations=phase_durations,
                            session=session,
+                           parameters=parameters,
                            *args,
                            **kwargs)
 
-        self.setup_stimuli(settings)
+        self.setup_stimuli()
 
         self.flicker_frequency = flicker_frequency
         self.eye = eyes
@@ -83,18 +84,19 @@ class StimulationTrial(Trial):
 
 class PositioningTrial(Trial):
 
-    def __init__(self, settings, *args, **kwargs):
+    def __init__(self, parameters, *args, **kwargs):
 
         phase_durations = [100000]
                            
         super(
             PositioningTrial,
-            self).__init__(ID='position',
+            self).__init__(parameters=parameters,
+                           ID='position',
                            phase_durations=phase_durations,
                            *args,
                            **kwargs)
 
-        self.setup_stimuli(settings)
+        self.setup_stimuli()
 
         self.possible_modes = list(itertools.product(['left', 'right'],
                                                      ['size', 'x', 'y', 'ori']))
@@ -105,17 +107,6 @@ class PositioningTrial(Trial):
 
         left_stimulus = self.session.left_stimulus
         right_stimulus = self.session.right_stimulus
-
-        self.parameters.update({'left_size':pix2deg(left_stimulus.size),
-                               'left_x':pix2deg(left_stimulus.pos[0]),
-                               'left_y':pix2deg(left_stimulus.pos[1]),
-                               'left_ori':left_stimulus.ori,
-                               'right_size':pix2deg(right_stimulus.size),
-                               'right_x':pix2deg(right_stimulus.pos[0]),
-                               'right_y':pix2deg(right_stimulus.pos[1]),
-                               'right_ori':right_stimulus.ori})
-
-        
         
 
     def draw(self):
@@ -221,20 +212,19 @@ class PositioningTrial(Trial):
         self.current_key = '{}_{}'.format(self.selected_stimulus,
                                           self.attribute)
 
-    def setup_stimuli(self, settings):
+    def setup_stimuli(self):
         """setup_stimuli creates all stimuli that do not change from trial to trial"""
 
-
         self.session.left_stimulus = StimulusSetToPosition(self.screen,
-                                         [settings['left_x'],
-                                          settings['left_y']],
-                                         settings['left_size'],
+                                         [self.parameters['left_x'],
+                                          self.parameters['left_y']],
+                                         self.parameters['left_size'],
                                          self.session,
-                                         ori=settings['left_ori'])
+                                         ori=self.parameters['left_ori'])
 
         self.session.right_stimulus = StimulusSetToPosition(self.screen,
-                                         [settings['right_x'],
-                                          settings['right_y']],
-                                         settings['right_size'],
+                                         [self.parameters['right_x'],
+                                          self.parameters['right_y']],
+                                         self.parameters['right_size'],
                                          self.session,
-                                         ori=settings['right_ori'])
+                                         ori=self.parameters['right_ori'])
