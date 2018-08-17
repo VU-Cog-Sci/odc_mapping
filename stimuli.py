@@ -1,6 +1,6 @@
 import numpy as np
 import psychopy
-from psychopy.visual import Line, GratingStim
+from psychopy.visual import Line, GratingStim, TextStim
 from psychopy.tools.unittools import radians
 
 
@@ -11,7 +11,7 @@ class ImageBased(object):
                  size,
                  pos,
                  ori=0,
-                 contrast = 1,
+                 contrast=1,
                  *args,
                  **kwargs):
 
@@ -335,15 +335,6 @@ class StimulusSet(object):
                        contrast=self.config.get('rim', 'contrast'),
                        ori=ori)
 
-        lw = self.session.deg2pix(self.config.get('cross', 'linewidth'))
-
-        self.cross = Cross(self.screen,
-                           self.size,
-                           pos=self.pos,
-                           lineColor=self.config.get('cross', 'color'),
-                           lineWidth=lw,
-                           ori=ori,
-                           )
 
         self.check_cross = CheckerBoardCross(self.screen,
                                              self.size,
@@ -367,3 +358,50 @@ class StimulusSet(object):
             self.fixation.draw()
             self.cross.draw()
 
+class StimulusSetToPosition(StimulusSet):
+
+    def __init__(self,
+                 win,
+                 pos,
+                 size,
+                 session,
+                 ori=0,
+                 hide=False,
+                 text=''):
+
+        super(StimulusSetToPosition, self).__init__(win,
+                                              pos,
+                                              size,
+                                              session,
+                                              ori,
+                                              hide)
+
+        lw = self.session.deg2pix(self.config.get('cross', 'linewidth'))
+
+        self.cross = Cross(self.screen,
+                           self.size,
+                           pos=self.pos,
+                           lineColor=self.config.get('cross', 'color'),
+                           lineWidth=lw,
+                           ori=ori,
+                           )
+
+        self.text_stimulus = TextStim(self.screen,
+                                      'size left',
+                                      pos=[self.pos[0],
+                                           self.pos[1] + 0.1 * self.size],
+                                      height=self.size*0.05,
+                                      ori=self.ori,
+                                      color='green')
+
+        self.checkerboard.contrast = 0
+
+
+    def draw(self):
+        super(StimulusSetToPosition, self).draw()
+        if not self.hide:
+            self.cross.draw()
+            self.text_stimulus.draw()
+
+    def set_text(self, text):
+        self.text_stimulus.text = text
