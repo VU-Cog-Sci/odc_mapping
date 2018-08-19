@@ -50,6 +50,9 @@ global:
     rotations_per_second: 0.33
     min_direction_duration: 3
     scale_direction_duration: 3
+    duration_per_eye: [12, 16, 20, 24, 20, 16, 12]
+    intro_duration: 3
+    outro_duration: 3
 
   mri:
     mri_trigger_key: 't'

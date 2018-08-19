@@ -12,8 +12,6 @@ class ODCSession(MRISession):
 
         parameters = self.find_parameters_subject()
 
-        print(parameters)
-
         if parameters is None:
             parameters = self.get_default_parameters()
 
@@ -35,6 +33,9 @@ class ODCSession(MRISession):
         parameters['rotations_per_second'] = self.config.get('task', 'rotations_per_second')
         parameters['min_direction_duration'] = self.config.get('task', 'min_direction_duration')
         parameters['scale_direction_duration'] = self.config.get('task', 'scale_direction_duration')
+        parameters['intro_duration'] = self.config.get('task', 'intro_duration')
+        parameters['outro_duration'] = self.config.get('task', 'outro_duration')
+        parameters['monocular_durations'] = self.config.get('task', 'duration_per_eye')
 
         self.flicker_trial = StimulationTrial(session=self,
                                               parameters=parameters)

@@ -12,6 +12,7 @@ class ImageBased(object):
                  pos,
                  ori=0,
                  contrast=1,
+                 hide=False,
                  *args,
                  **kwargs):
 
@@ -32,8 +33,11 @@ class ImageBased(object):
 
         self.contrast = contrast
 
+        self.hide = hide
+
     def draw(self):
-        self._stim.draw()
+        if not self.hide:
+            self._stim.draw()
 
     def _get_array(self):
         pass
@@ -108,10 +112,6 @@ class CheckerBoard(ImageBased):
         board = board if not self.inverted else board * -1
 
         return board, mask
-
-    def draw(self):
-        """Draw checkerboard object."""
-        self._stim.draw()
 
 
 class Rim(ImageBased):
@@ -215,6 +215,7 @@ class CheckerBoardCross(ImageBased):
                  side_len=16,
                  n_blocks=2,
                  inverted=False,
+                 ratio_inner_circle=1.5,
                  height=None):
        
         if (side_len % 2 == 0) & (n_blocks % 2 == 1):
@@ -226,6 +227,8 @@ class CheckerBoardCross(ImageBased):
         self.side_len = side_len
         self.n_blocks = n_blocks
         self.inverted = inverted
+
+        self.ratio_inner_circle = ratio_inner_circle
         
         super(CheckerBoardCross, self).__init__(win,
                                                 size,
@@ -257,13 +260,17 @@ class CheckerBoardCross(ImageBased):
             cross = np.repeat(np.repeat(cross, upscale, axis=0),
                               upscale, axis=1)
 
+        x = np.linspace(-1, 1, board.shape[0])
+        y = np.linspace(-1, 1, board.shape[1])
+
+        xv, yv = np.meshgrid(x, y)
+        mask = (xv**2 + yv**2 < self.ratio_inner_circle)
+
+        board[mask] = -1
+
         board = board if not self.inverted else board * -1
 
         return board, cross
-
-    def draw(self):
-        """Draw checkerboard object."""
-        self._stim.draw()
 
 class FixationPoint(object):
 
@@ -343,12 +350,15 @@ class StimulusSet(object):
                        contrast=self.config.get('rim', 'contrast'),
                        ori=ori)
 
+        ratio_inner_circle = 1 / self.config.get('checker_cross', 'ratio_to_circle') /\
+                             self.config.get('rim', 'rim_ratio') 
 
         self.check_cross = CheckerBoardCross(self.screen,
                                              self.size,
                                              side_len=32,
                                              n_blocks=4,
                                              pos=self.pos,
+                                             ratio_inner_circle=ratio_inner_circle,
                                              ori=ori)
 
         fixation_size = self.config.get('fixation', 'proportion') * self.size

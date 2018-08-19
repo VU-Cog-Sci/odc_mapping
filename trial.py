@@ -15,11 +15,11 @@ class StimulationTrial(MRITrial):
                  **kwargs):
         
 
-        self.trial_length = session.config.get('timing',
+        self.trial_duration = session.config.get('timing',
                                                'trial_length')
 
         phase_durations = [1e6,
-                           self.trial_length]
+                           self.trial_duration]
 
         super(
             StimulationTrial,
@@ -43,16 +43,19 @@ class StimulationTrial(MRITrial):
 
 
         self.directions = self._get_frame_values(self.session.framerate,
-                                         self.trial_length,
+                                         self.trial_duration,
                                          self.parameters['min_direction_duration'],
                                          self.parameters['scale_direction_duration'])
 
         self.colors = self._get_frame_values(self.session.framerate,
-                                         self.trial_length,
+                                         self.trial_duration,
                                          self.parameters['min_direction_duration'],
                                          self.parameters['scale_direction_duration'],
                                          [0, 1]).astype(int)
-        
+
+        self.monocularity_array = self._get_monocularity_array(self.parameters['intro_duration'],
+                                                               self.parameters['monocular_durations']).astype(int)
+
         self.fixation_colors = np.array([[1, -1, -1],
                                          [-1, 1, -1]])
 
@@ -65,15 +68,34 @@ class StimulationTrial(MRITrial):
                 textstim.draw()
 
         else:
+
+            if self.frame < int(self.session.framerate * self.parameters['intro_duration']):
+                self.left_stimulus.checkerboard.contrast = 0
+                self.right_stimulus.checkerboard.contrast = 0
+            elif self.frame == int(self.session.framerate * self.parameters['intro_duration']):
+                self.left_stimulus.checkerboard.contrast = 1
+                self.right_stimulus.checkerboard.contrast = 1
+
             if self.frame % self.flicker_length_in_frames == 0:
                 self.left_stimulus.checkerboard.contrast *= -1
                 self.right_stimulus.checkerboard.contrast *= -1
 
-
+            
             self.left_stimulus.draw()
             self.right_stimulus.draw()
 
             self.frame += 1
+
+            if self.monocularity_array[self.frame] == -1:
+                self.left_stimulus.checkerboard.hide = False
+                self.right_stimulus.checkerboard.hide = True
+            elif self.monocularity_array[self.frame] == 1:
+                self.left_stimulus.checkerboard.hide = True
+                self.right_stimulus.checkerboard.hide = False
+            else:
+                self.left_stimulus.checkerboard.hide = False
+                self.right_stimulus.checkerboard.hide = False
+
 
             self.left_stimulus.checkerboard._stim.ori = self.left_stimulus.checkerboard._stim.ori + \
                                                   self.rotation_per_frame *\
@@ -158,10 +180,32 @@ class StimulationTrial(MRITrial):
         result[frame_times < durations[0]] = values[first_index]
 
         for ix, c in enumerate(np.cumsum(durations)):
-            print(ix, c)
             result[frame_times > c] = values[(first_index + ix) % n_values]
 
         return result
+
+    def _get_monocularity_array(self,
+                                intro_duration,
+                                durations,
+                                safety_margin=None):
+
+
+        if safety_margin is None:
+            safety_margin = 5
+
+        total_duration = self.trial_duration + safety_margin
+        total_n_frames = total_duration * self.session.framerate
+
+        result = np.zeros(total_n_frames)
+
+        start_ix = self.session.framerate * intro_duration
+
+        for d in durations:
+            result[start_ix:start_ix+d*self.session.framerate] = -1
+            result[start_ix+d*self.session.framerate:start_ix+d*2*self.session.framerate] = 1
+
+        return result
+
 
 class PositioningTrial(Trial):
 
