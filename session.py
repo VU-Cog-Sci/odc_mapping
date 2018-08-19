@@ -21,7 +21,7 @@ class ODCSession(MRISession):
 
         self.positioning_trial = PositioningTrial(session=self,
                                                   parameters=parameters)
-        #print('yoooo', self.mri_trigger_key)
+
 
         
     def run(self):
@@ -30,11 +30,20 @@ class ODCSession(MRISession):
         self.positioning_trial.run()
 
         parameters = self.positioning_trial.parameters
+        parameters['framerate'] = self.framerate
         parameters['flicker_frequency'] = self.config.get('task', 'flicker_frequency')
         parameters['rotations_per_second'] = self.config.get('task', 'rotations_per_second')
+        parameters['min_direction_duration'] = self.config.get('task', 'min_direction_duration')
+        parameters['scale_direction_duration'] = self.config.get('task', 'scale_direction_duration')
 
         self.flicker_trial = StimulationTrial(session=self,
                                               parameters=parameters)
+
+        np.savetxt(self.output_file + '_colors.log',
+                   self.flicker_trial.colors)
+
+        np.savetxt(self.output_file + '_directions.log',
+                   self.flicker_trial.directions)
 
         self.flicker_trial.run()
 

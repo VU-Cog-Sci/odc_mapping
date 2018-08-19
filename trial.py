@@ -14,9 +14,12 @@ class StimulationTrial(MRITrial):
                  *args, 
                  **kwargs):
         
+
+        self.trial_length = session.config.get('timing',
+                                               'trial_length')
+
         phase_durations = [1e6,
-                           session.config.get('timing',
-                                              'trial_length')]
+                           self.trial_length]
 
         super(
             StimulationTrial,
@@ -38,28 +41,50 @@ class StimulationTrial(MRITrial):
         self.left_stimulus.checkerboard.contrast = 1
         self.right_stimulus.checkerboard.contrast = 1
 
+
+        self.directions = self._get_frame_values(self.session.framerate,
+                                         self.trial_length,
+                                         self.parameters['min_direction_duration'],
+                                         self.parameters['scale_direction_duration'])
+
+        self.colors = self._get_frame_values(self.session.framerate,
+                                         self.trial_length,
+                                         self.parameters['min_direction_duration'],
+                                         self.parameters['scale_direction_duration'],
+                                         [0, 1]).astype(int)
+        
+        self.fixation_colors = np.array([[1, -1, -1],
+                                         [-1, 1, -1]])
+
+
+
     def draw(self):
 
-        #if self.phase == 0:
-            #for textstim in self.wait_stims:
-                #textstim.draw()
+        if self.phase == 0:
+            for textstim in self.wait_stims:
+                textstim.draw()
 
-        #else:
-        if self.frame % self.flicker_length_in_frames == 0:
-            self.left_stimulus.checkerboard.contrast *= -1
-            self.right_stimulus.checkerboard.contrast *= -1
+        else:
+            if self.frame % self.flicker_length_in_frames == 0:
+                self.left_stimulus.checkerboard.contrast *= -1
+                self.right_stimulus.checkerboard.contrast *= -1
 
 
-        self.left_stimulus.draw()
-        self.right_stimulus.draw()
+            self.left_stimulus.draw()
+            self.right_stimulus.draw()
 
-        self.frame += 1
+            self.frame += 1
 
-        self.left_stimulus.checkerboard._stim.ori = self.left_stimulus.checkerboard._stim.ori + \
-                                              self.rotation_per_frame
+            self.left_stimulus.checkerboard._stim.ori = self.left_stimulus.checkerboard._stim.ori + \
+                                                  self.rotation_per_frame *\
+            self.directions[self.frame]
 
-        self.right_stimulus.checkerboard._stim.ori = self.right_stimulus.checkerboard._stim.ori + \
-                                              self.rotation_per_frame
+            self.right_stimulus.checkerboard._stim.ori = self.right_stimulus.checkerboard._stim.ori + \
+                                                  self.rotation_per_frame *\
+            self.directions[self.frame]
+
+            self.left_stimulus.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
+            self.right_stimulus.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
 
         super(StimulationTrial, self).draw()
 
@@ -101,7 +126,42 @@ class StimulationTrial(MRITrial):
                 self.session.stopped = True
                 print 'run canceled by user'
 
+            super(StimulationTrial, self).key_event(ev)
+
         super(StimulationTrial, self).event()
+
+    def _get_frame_values(self,
+                          framerate,
+                          trial_duration,
+                          min_value,
+                          exp_scale,
+                          values=[-1, 1],
+                          safety_margin=None):
+
+        if safety_margin is None:
+            safety_margin =  5
+
+        n_values = len(values)
+
+        total_duration = trial_duration + safety_margin
+        total_n_frames = total_duration * framerate
+
+        result = np.zeros(total_n_frames)
+
+        n_samples = np.ceil(total_duration * 2 / (exp_scale + min_value)).astype(int)
+        durations = np.random.exponential(exp_scale, n_samples) + min_value
+
+        frame_times = np.linspace(0, total_duration, total_n_frames, endpoint=False)
+
+        first_index = np.random.randint(n_values)
+
+        result[frame_times < durations[0]] = values[first_index]
+
+        for ix, c in enumerate(np.cumsum(durations)):
+            print(ix, c)
+            result[frame_times > c] = values[(first_index + ix) % n_values]
+
+        return result
 
 class PositioningTrial(Trial):
 
