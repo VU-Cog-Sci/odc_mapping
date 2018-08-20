@@ -341,7 +341,7 @@ class PositioningTrial(Trial):
                 ix = self.possible_modes.index((selected_stimulus,
                                                 attribute))
 
-        self.mode_ix = ix 
+        self.mode_ix = ix
 
         self.selected_stimulus = self.possible_modes[ix][0]
         self.attribute = self.possible_modes[ix][1]
