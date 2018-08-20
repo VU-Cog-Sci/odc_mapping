@@ -22,6 +22,7 @@ global:
     right_size: 10
 
     checkerboard_cycles_per_degree: 0.5
+    checkerboard_type: 'square'
        
   cross:
     linewidth: .025

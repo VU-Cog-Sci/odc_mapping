@@ -1,9 +1,9 @@
 import numpy as np
 import psychopy
-from psychopy.visual import Line, GratingStim, TextStim
+from psychopy.visual import Line, GratingStim, TextStim, RadialStim
 from psychopy.visual.filters import makeMask
 from psychopy.tools.unittools import radians
-
+from psychopy.tools.attributetools import setAttribute, attributeSetter
 
 class ImageBased(object):
 
@@ -35,6 +35,7 @@ class ImageBased(object):
         self.contrast = contrast
 
         self.hide = hide
+        self.autoLog = False
 
     def draw(self):
         if not self.hide:
@@ -42,6 +43,10 @@ class ImageBased(object):
 
     def _get_array(self):
         pass
+
+    @attributeSetter
+    def opacity(self, opacity):
+        self._stim.opacity = opacity
 
     @property
     def contrast(self):
@@ -55,10 +60,12 @@ class ImageBased(object):
     def ori(self):
         return self._stim.ori
 
-    @contrast.setter
+    @ori.setter
     def ori(self, value):
         self._stim.ori = value
 
+    def setOri(self, value):
+        self.ori = value
 
 class CheckerBoard(ImageBased):
     """Create an instance of a `Checkerboard` object.
@@ -316,6 +323,7 @@ class StimulusSet(object):
                  session,
                  ori=0,
                  side_len=12,
+                 checkerboard_type='square',
                  hide=False):
 
         self.screen = win
@@ -329,17 +337,33 @@ class StimulusSet(object):
 
         self.hide = hide
 
-        self.checkerboard = CheckerBoard(self.screen,
-                                         size=self.size /
-                                              self.config.get('checker_cross', 
-                                                         'ratio_to_circle'),
-                                         side_len=side_len,
-                                         pos=self.pos,
-                                         ori=ori)
+        checkerboard_size = self.size / self.config.get('checker_cross', 'ratio_to_circle')
+
+
+        if checkerboard_type == 'square':
+            self.checkerboard = CheckerBoard(self.screen,
+                                             size=checkerboard_size,
+                                             side_len=side_len,
+                                             pos=self.pos,
+                                             ori=ori)
+        elif checkerboard_type == 'radial':
+            mask = makeMask(checkerboard_size,
+                            'raisedCosine',
+                            range=(0,1))
+
+            mask = mask[int(checkerboard_size/2), int(checkerboard_size/2):]
+            self.checkerboard = RadialStim(self.screen,
+                                           mask=mask,
+                                           pos=self.pos,
+                                           size=checkerboard_size,
+                                           angularCycles=side_len,
+                                           radialCycles=side_len /4)
+        else:
+            ValueError('{} is not a valid checkerboard type'.format(checkerboard_type))
 
 
         rim_radius = self.size / 2 / self.config.get('checker_cross',
-                                                'ratio_to_circle') - 1
+                                                     'ratio_to_circle') - 1
 
         self.rim = Rim(self.screen,
                        rim_radius,

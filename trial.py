@@ -92,23 +92,21 @@ class StimulationTrial(MRITrial):
             self.frame += 1
 
             if self.monocularity_array[self.frame] == -1:
-                self.left_stimulus.checkerboard.hide = False
-                self.right_stimulus.checkerboard.hide = True
+                self.left_stimulus.checkerboard.opacity = 0
+                self.right_stimulus.checkerboard.opacity = 1
             elif self.monocularity_array[self.frame] == 1:
-                self.left_stimulus.checkerboard.hide = True
-                self.right_stimulus.checkerboard.hide = False
+                self.left_stimulus.checkerboard.opacity = 1
+                self.right_stimulus.checkerboard.opacity = 0
             else:
-                self.left_stimulus.checkerboard.hide = False
-                self.right_stimulus.checkerboard.hide = False
+                self.left_stimulus.checkerboard.opacity = 0
+                self.right_stimulus.checkerboard.opacity = 0
 
 
-            self.left_stimulus.checkerboard._stim.ori = self.left_stimulus.checkerboard._stim.ori + \
-                                                  self.rotation_per_frame *\
-            self.directions[self.frame]
+            new_ori = self.left_stimulus.checkerboard.ori + self.rotation_per_frame * self.directions[self.frame]
 
-            self.right_stimulus.checkerboard._stim.ori = self.right_stimulus.checkerboard._stim.ori + \
-                                                  self.rotation_per_frame *\
-            self.directions[self.frame]
+
+            self.left_stimulus.checkerboard.setOri(new_ori)
+            self.right_stimulus.checkerboard.setOri(new_ori)
 
             self.left_stimulus.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
             self.right_stimulus.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
@@ -123,18 +121,20 @@ class StimulationTrial(MRITrial):
         self.left_stimulus = StimulusSet(self.screen,
                                          [self.parameters['left_x'],
                                           self.parameters['left_y']],
-                                         self.parameters['left_size'],
-                                         self.session,
-                                         side_len=side_len,
-                                         ori=self.parameters['left_ori'])
+                                          self.parameters['left_size'],
+                                          self.session,
+                                          side_len=side_len,
+                                          ori=self.parameters['left_ori'],
+                                          checkerboard_type=self.parameters['checkerboard_type'])
 
         self.right_stimulus = StimulusSet(self.screen,
                                          [self.parameters['right_x'],
                                           self.parameters['right_y']],
-                                         self.parameters['right_size'],
-                                         self.session,
-                                         side_len=side_len,
-                                         ori=self.parameters['right_ori'])
+                                          self.parameters['right_size'],
+                                          self.session,
+                                          side_len=side_len,
+                                          ori=self.parameters['right_ori'],
+                                          checkerboard_type=self.parameters['checkerboard_type'])
 
         self.wait_stims = [visual.TextStim(self.screen,
                                            'Waiting for trigger',
@@ -323,6 +323,7 @@ class PositioningTrial(Trial):
                                                          self.session,
                                                          ori=self.parameters['right_ori'],
                                                          hide=self.right_stimulus.hide)
+
 
 
     def set_mode(self, 
