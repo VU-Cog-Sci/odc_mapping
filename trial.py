@@ -118,13 +118,14 @@ class StimulationTrial(MRITrial):
     def setup_stimuli(self):
         """setup_stimuli creates all stimuli that do not change from trial to trial"""
 
-
+        side_len = int(self.parameters['checkerboard_cycles_per_degree'] * self.parameters['left_size'] * 2.)
 
         self.left_stimulus = StimulusSet(self.screen,
                                          [self.parameters['left_x'],
                                           self.parameters['left_y']],
                                          self.parameters['left_size'],
                                          self.session,
+                                         side_len=side_len,
                                          ori=self.parameters['left_ori'])
 
         self.right_stimulus = StimulusSet(self.screen,
@@ -132,6 +133,7 @@ class StimulationTrial(MRITrial):
                                           self.parameters['right_y']],
                                          self.parameters['right_size'],
                                          self.session,
+                                         side_len=side_len,
                                          ori=self.parameters['right_ori'])
 
         self.wait_stims = [visual.TextStim(self.screen,

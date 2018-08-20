@@ -20,6 +20,8 @@ global:
 
     left_size: 10
     right_size: 10
+
+    checkerboard_cycles_per_degree: 1
        
   cross:
     linewidth: .025

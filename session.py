@@ -36,6 +36,7 @@ class ODCSession(MRISession):
         parameters['intro_duration'] = self.config.get('task', 'intro_duration')
         parameters['outro_duration'] = self.config.get('task', 'outro_duration')
         parameters['monocular_durations'] = self.config.get('task', 'duration_per_eye')
+        parameters['checkerboard_cycles_per_degree'] = self.config.get('stimuli', 'checkerboard_cycles_per_degree')
 
         self.flicker_trial = StimulationTrial(session=self,
                                               parameters=parameters)

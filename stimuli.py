@@ -318,6 +318,7 @@ class StimulusSet(object):
                  size,
                  session,
                  ori=0,
+                 side_len=12,
                  hide=False):
 
         self.screen = win
@@ -335,6 +336,7 @@ class StimulusSet(object):
                                          size=self.size /
                                               self.config.get('checker_cross', 
                                                          'ratio_to_circle'),
+                                         side_len=side_len,
                                          pos=self.pos,
                                          ori=ori)
 
@@ -386,11 +388,11 @@ class StimulusSetToPosition(StimulusSet):
                  text=''):
 
         super(StimulusSetToPosition, self).__init__(win,
-                                              pos,
-                                              size,
-                                              session,
-                                              ori,
-                                              hide)
+                                              pos=pos,
+                                              size=size,
+                                              session=session,
+                                              ori=ori,
+                                              hide=hide)
 
         lw = self.session.deg2pix(self.config.get('cross', 'linewidth'))
 
