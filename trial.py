@@ -36,7 +36,7 @@ class StimulationTrial(MRITrial):
         self.flicker_frequency = self.parameters['flicker_frequency']
 
         self.frame = 0
-        self.flicker_length_in_frames = int(self.session.framerate / self.flicker_frequency)
+        self.flicker_length_in_frames = int(self.session.framerate / self.flicker_frequency / 2.)
         self.rotation_per_frame = 360 * self.parameters['rotations_per_second'] / self.session.framerate
 
         self.left_stimulus.checkerboard.contrast = 1
