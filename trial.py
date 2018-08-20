@@ -15,8 +15,9 @@ class StimulationTrial(MRITrial):
                  **kwargs):
         
 
-        self.trial_duration = session.config.get('timing',
-                                               'trial_length')
+        self.trial_duration = np.sum(session.config.get('task', 'duration_per_eye')) * 2 +\
+                              session.config.get('task', 'intro_duration') + \
+                              session.config.get('task', 'outro_duration')
 
         phase_durations = [1e6,
                            self.trial_duration]
