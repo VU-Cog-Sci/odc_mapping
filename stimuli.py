@@ -77,7 +77,6 @@ class CheckerBoard(ImageBased):
                  side_len=8,
                  inverted=False,
                  size=16,
-                 cyclesperdegree=1,
                  mask=None,
                  ori=0,
                  *args,
