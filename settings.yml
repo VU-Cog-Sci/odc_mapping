@@ -5,7 +5,7 @@ global:
     background_color: [-1, -1, -1]
     gamma_scale: [2.475,2.25,2.15]
     physical_screen_size: [58, 36]
-    physical_screen_distance: 60
+    physical_screen_distance: 25
     max_lums: [24.52, 78.8, 10.19]
     wait_blanking: True
     mouse_visible: False
@@ -21,7 +21,7 @@ global:
     left_size: 10
     right_size: 10
 
-    checkerboard_cycles_per_degree: 1
+    checkerboard_cycles_per_degree: 0.5
        
   cross:
     linewidth: .025
@@ -47,13 +47,13 @@ global:
     stimulus_length: 12
 
   task:
-    flicker_frequency: 0.00001
-    rotations_per_second: 0.33
+    flicker_frequency: 8.
+    rotations_per_second: .66
     min_direction_duration: 3
     scale_direction_duration: 3
     duration_per_eye: [12, 16, 20, 24, 20, 16, 12]
-    intro_duration: 3
-    outro_duration: 3
+    intro_duration: 12
+    outro_duration: 12
 
   mri:
     mri_trigger_key: 't'
