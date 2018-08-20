@@ -76,6 +76,10 @@ class StimulationTrial(MRITrial):
             elif self.frame == int(self.session.framerate * self.parameters['intro_duration']):
                 self.left_stimulus.checkerboard.contrast = 1
                 self.right_stimulus.checkerboard.contrast = 1
+            elif self.frame == int(self.session.framerate * (self.trial_duration -\
+                                                             self.parameters['outro_duration'])):
+                self.left_stimulus.checkerboard.contrast = 0
+                self.right_stimulus.checkerboard.contrast = 0
 
             if self.frame % self.flicker_length_in_frames == 0:
                 self.left_stimulus.checkerboard.contrast *= -1
