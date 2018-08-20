@@ -1,6 +1,7 @@
 import numpy as np
 import psychopy
 from psychopy.visual import Line, GratingStim, TextStim
+from psychopy.visual.filters import makeMask
 from psychopy.tools.unittools import radians
 
 
@@ -102,12 +103,9 @@ class CheckerBoard(ImageBased):
                               upscale, axis=1)
 
         if mask is not None:
-            if mask == 'circle':
-                x = np.linspace(-1, 1, board.shape[0])
-                y = np.linspace(-1, 1, board.shape[1])
+            mask = makeMask(board.shape[0],
+                            'raisedCosine')
 
-                xv, yv = np.meshgrid(x, y)
-                mask = (xv**2 + yv**2 < 1).astype(float) * 2 - 1
 
         board = board if not self.inverted else board * -1
 
