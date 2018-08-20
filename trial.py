@@ -203,7 +203,8 @@ class StimulationTrial(MRITrial):
 
         for d in durations:
             result[start_ix:start_ix+d*self.session.framerate] = -1
-            result[start_ix+d*self.session.framerate:start_ix+d*2*self.session.framerate] = 1
+            result[start_ix+d*self.session.framerate:start_ix + d * 2 * self.session.framerate] = 1
+            start_ix = start_ix + d * 2 * self.session.framerate
 
         return result
 
