@@ -1,0 +1,4 @@
+[submodule "spynoza"]
+	path = spynoza
+	url = git@github.com:spinoza-centre/spynoza.git
+	branch = 7t_hires

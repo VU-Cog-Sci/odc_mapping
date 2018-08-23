@@ -1,0 +1,10 @@
+version: '2'
+services:
+  odcmapping:
+    entrypoint: zsh
+    build: .
+    volumes:
+      - ./analysis:/src
+      - $DATA_DIR:/data
+    environment:
+      - DATA_DIR=/data
