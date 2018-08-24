@@ -5,6 +5,6 @@ services:
     build: .
     volumes:
       - ./analysis:/src
-      - $SOURCEDATA:/sourcedata:ro
+      - $SOURCEDATA:/sourcedata
       - $DERIVATIVES:/derivatives
       - /tmp/workflow_folders:/workflow_folders
