@@ -13,3 +13,4 @@ RUN bash -c "source activate neuro && pip uninstall -y spynoza && cd /spynoza &&
 COPY ./analysis /src
 WORKDIR /src
 RUN echo "source activate neuro" >> ~/.zshrc
+COPY nipype.cfg ~/.nipype/nipype.cfg
