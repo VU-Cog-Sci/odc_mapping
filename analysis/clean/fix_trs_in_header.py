@@ -1,7 +1,7 @@
 import nibabel as nb
 import os
 import sys
-from bids.layout import BIDSLayout
+from bids.grabbids import BIDSLayout
 import shutil
 
 def main(bids_dir, subject):
