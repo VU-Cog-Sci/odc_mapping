@@ -8,3 +8,4 @@ services:
       - $SOURCEDATA:/sourcedata
       - $DERIVATIVES:/derivatives
       - /tmp/workflow_folders:/workflow_folders
+      - ./spynoza:/spynoza
