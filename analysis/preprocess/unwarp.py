@@ -31,6 +31,7 @@ def main(sourcedata,
 
     init_matrix = derivatives_layout.get(subject=subject,
                                          type='initmat',
+                                         extensions='mat',
                                          return_type='file')
 
     if len(init_matrix) == 1:
@@ -54,12 +55,12 @@ def main(sourcedata,
                               inv2_epi=None,
                               crop_bold_epis=True,
                               topup_package='afni',
+                              epi_to_t1_package='fsl',
                               within_epi_reg=True,
                               polish=True,
                               num_threads_ants=4)
 
     wf.base_dir = tmp_dir
-
 
     wf.run(plugin='MultiProc', 
            plugin_args={'n_procs' : 10})
