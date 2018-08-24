@@ -1,28 +1,45 @@
 from spynoza.hires.workflows import init_hires_unwarping_wf
 from bids.grabbids import BIDSLayout
 import os
+import argparse
 
 
 def main(sourcedata, 
          derivatives,
-         tmp_dir):
+         tmp_dir,
+         subject=None,
+         run=None):
+
+    if run is []:
+        run = '[0-9]+'
 
     layout = BIDSLayout(sourcedata)
+    derivatives_layout = BIDSLayout(derivatives)
 
-    bold = layout.get(run=2,type='bold', return_type='file' )
-    epi = layout.get(run=2,type='epi', extensions='nii', return_type='file' )
+    bold = layout.get(subject=subject,
+                      run=run,
+                      type='bold', 
+                      return_type='file')
+
+    epi = layout.get(subject=subject,
+                     run=run,
+                     type='epi',
+                     extensions='nii',
+                     return_type='file')
 
     t1w = layout.get(type='T1w', return_type='file')[0]
 
-    init_matrix = os.path.join(derivatives,
-                               'matrices',
-                               'sub-tk',
-                               'sub-tk_session-odc1_run-02_to_acq-avg_T1w.h5')
+    init_matrix = derivatives_layout.get(subject=subject,
+                                         type='initmat',
+                                         return_type='file')
 
-    print(bold, epi, t1w)
+    if len(init_matrix) == 1:
+        init_matrix = init_matrix[0]
+    else:
+        init_matrix = None
+    print(init_matrix)
 
-
-    wf = init_hires_unwarping_wf(name="unwarp_hires",
+    wf = init_hires_unwarping_wf(name="unwarp_hires_{}".format(subject),
                               method='topup',
                               bids_layout=layout,
                               single_warpfield=False,
@@ -51,12 +68,18 @@ def main(sourcedata,
 
 if __name__ == '__main__':
 
-    bids_dir = '/home/raw_data/2018/visual/7T_BR/ODC'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("subject", 
+                        help="subject to process")
+    parser.add_argument("run", 
+                        default=[], 
+                        nargs='*', 
+                        help="runs to process")
+    args = parser.parse_args()
 
-    sourcedata  = os.path.join(bids_dir, 'sourcedata')
-    derivatives = '/home/shared/2018/visual/7T_BR/ODC/derivatives'
-
-    main(sourcedata, 
-         derivatives,
-         tmp_dir='/tmp/workflow_folders')
+    main('/sourcedata', 
+         '/derivatives',
+         subject=args.subject,
+         run=args.run,
+         tmp_dir='/workflow_folders')
 
