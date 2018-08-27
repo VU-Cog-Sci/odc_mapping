@@ -1,6 +1,4 @@
-from knapenlab/nd:0.0.10nvtest
-
-ENV PATH /opt/conda/envs/neuro/bin:$PATH
+from knapenlab/nd:0.0.10gillesdev
 
 RUN ["apt-get", "update"]
 RUN ["apt-get", "install", "-y", "zsh"]
