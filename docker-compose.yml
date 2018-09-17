@@ -10,3 +10,4 @@ services:
       - /tmp/workflow_folders:/workflow_folders
       - ./spynoza:/spynoza
       - ./crashdumps:/crashdumps
+      - /home/hollander/git/nighres/nighres:/nighres/nighres
