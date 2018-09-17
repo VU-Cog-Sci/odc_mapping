@@ -3,13 +3,24 @@ from bids.grabbids import BIDSLayout
 import argparse
 import numpy as np
 import ast
+import os
 
 
-def main(bids_dir, subject):
+def main(bids_dir, subject, session):
     layout = BIDSLayout(bids_dir)
     
     trials = layout.get(type='trials', 
+                        session=session,
+                        subject=subject,
                         extensions='tsv')
+
+    onset_dir = os.path.join(bids_dir, 
+                      'sub-{}'.format(subject))
+    
+    if session is not None:
+        onset_dir = os.path.join(onset_dir, 'ses-{}'.format(session))
+
+    onset_dir = os.path.join(onset_dir, 'func')
 
     for trial in trials:
         print(trial)
@@ -35,16 +46,30 @@ def main(bids_dir, subject):
                 onsets.append(d)
                 current_time += duration
 
-        print(pd.DataFrame(onsets))
+        onsets = pd.DataFrame(onsets)
 
 
+        if session is not None:
+            session_str = '_ses-{}'.format(session)
+        else:
+            session_str = ''
+        fn = 'sub-{subject}{session_str}_task-{task}_acq-07_run-{run}_events.tsv'.format(subject=trial.subject,
+                                                                                         session_str=session_str,
+                                                                                         task=trial.task,
+                                                                                         run=trial.run)
+        fn = os.path.join(onset_dir, fn)
+        
+        onsets.to_csv(fn, sep='\t', index=False)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("subject", 
                         help="subject to process")
+    parser.add_argument("session", 
+                        help="session to process")
     args = parser.parse_args()
 
     main('/sourcedata', 
-         subject=args.subject)
+         subject=args.subject,
+         session=args.session)
 
