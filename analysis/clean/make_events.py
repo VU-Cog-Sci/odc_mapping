@@ -53,10 +53,10 @@ def main(bids_dir, subject, session):
             session_str = '_ses-{}'.format(session)
         else:
             session_str = ''
-        fn = 'sub-{subject}{session_str}_task-{task}_acq-07_run-{run}_events.tsv'.format(subject=trial.subject,
+        fn = 'sub-{subject}{session_str}_task-{task}_acq-07_run-{run:02d}_events.tsv'.format(subject=trial.subject,
                                                                                          session_str=session_str,
                                                                                          task=trial.task,
-                                                                                         run=trial.run)
+                                                                                         run=int(trial.run))
         fn = os.path.join(onset_dir, fn)
         
         onsets.to_csv(fn, sep='\t', index=False)
