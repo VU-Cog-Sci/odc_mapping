@@ -2,6 +2,7 @@ from spynoza.hires.workflows import init_hires_unwarping_wf
 from bids.grabbids import BIDSLayout
 import os
 import argparse
+import warnings
 
 
 def main(sourcedata, 
@@ -31,8 +32,8 @@ def main(sourcedata,
 
 
     if len(dtissue) > 1:
-        warnings.warn('Found more than one white-matter segmentation! '\
-                      'Using {}'.format(wm_seg[0]))
+        warnings.warn('Found more than one white-matter segmentation! {} '\
+                      'Using {}'.format(dtissue, dtissue[0]))
 
     dtissue = dtissue[0]
     print(dtissue)
