@@ -1,0 +1,7 @@
+
+ * First run fmriprep on T1-weighted image, masked by manual dura filter
+ * Extract brain_mask.mgz and mask it by manual dura filter (backup old mask .bak)
+ * Remove workflow folder: single_subject_*_wf/anat_preproc_wf/surface_recon_wf ^
+
+
+^ see https://neurostars.org/t/fmriprep-correction-of-surface-extracted-from-freesurfer-anat-only/2428/2
