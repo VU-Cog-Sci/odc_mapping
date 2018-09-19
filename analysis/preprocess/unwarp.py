@@ -47,12 +47,16 @@ def main(sourcedata,
                       type='bold', 
                       return_type='file')
 
-    epi = layout.get(subject=subject,
-                     session=session,
-                     run=run,
-                     type='epi',
-                     extensions='nii',
-                     return_type='file')
+    
+    epi = []
+    for b in bold:
+        fmaps = layout.get_fieldmap(b, return_list=True)
+        for fmap in fmaps:
+            if fmap['type'] == 'epi':
+                break
+        epi.append(fmap['epi'])
+        print('Using {} as epi_op for {}'.format(fmap['epi'], b))
+
 
     t1w = layout.get(subject=subject, type='T1w', return_type='file')[0]
 
@@ -135,6 +139,7 @@ if __name__ == '__main__':
                         help="subject to process")
     parser.add_argument("run", 
                         default=[], 
+                        type=list,
                         nargs='*', 
                         help="runs to process")
     args = parser.parse_args()
