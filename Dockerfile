@@ -33,7 +33,7 @@ RUN apt-get install -y jcc
 
 RUN conda create --name nighres python=2.7 numpy scipy ipython jcc
 RUN git clone https://github.com/nighres/nighres /nighres && \
-    cd /nighres && /bin/bash -c "cd /nighres && source activate nighres && ./build.sh && python setup.py install && pip install pybids"
+    cd /nighres && /bin/bash -c "cd /nighres && source activate nighres && ./build.sh && python setup.py install && pip install pybids sklearn nilearn"
     
 RUN cd /tmp \
     && wget -q https://github.com/spinoza-centre/spynoza/archive/7t_hires.zip \
