@@ -90,8 +90,9 @@ def main(sourcedata,
                               crop_bolds=True,
                               topup_package='afni',
                               epi_to_t1_package='fsl',
-                              within_epi_reg=True,
+                              within_epi_reg=False,
                               polish=True,
+                              derivatives_dir=os.path.join(derivatives, 'onefield'),
                               num_threads_ants=4)
 
     wf.connect(get_wm_wf, 'outputspec.wm_seg', wf.get_node('inputspec'), 'wm_seg')
