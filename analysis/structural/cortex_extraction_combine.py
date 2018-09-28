@@ -25,8 +25,8 @@ def main(sourcedata,
     manual_layout = BIDSLayout(os.path.join(derivatives,
                                               'manual_segmentation'))
 
-    wm_manual = get_bids_file(manual_layout, subject, 'manualsegwml')
-    gm_manual = get_bids_file(manual_layout, subject, 'manualseggml')
+    wm_manual = get_bids_file(manual_layout, subject, 'manualsegwm')
+    gm_manual = get_bids_file(manual_layout, subject, 'manualseggm')
 
 
     wm_fmriprep = get_bids_file(fmriprep_layout, subject, 'probtissue', 'WM')
@@ -56,29 +56,66 @@ def main(sourcedata,
                               'cortex_extraction_combine_manual',
                               'sub-{}'.format(subject))
 
+    extract_layout = BIDSLayout(os.path.join(derivatives,
+                                             'nighres',
+                                             'cortex_extraction'))
     # RIGHT
-    #cortex = nighres.brain.extract_brain_region(segmentation=segmentation,
-                                       #levelset_boundary=boundary_dist,
-                                       #maximum_membership=max_probas,
-                                       #maximum_label=max_labels,
-                                       #extracted_region='right_cerebrum',
-                                       #file_name='sub-{}'.format(subject),
-                                       #save_data=True,
-                                       #output_dir=output_dir)
+    cortex_right = nighres.brain.extract_brain_region(segmentation=segmentation,
+                                               levelset_boundary=boundary_dist,
+                                               maximum_membership=max_probas,
+                                               maximum_label=max_labels,
+                                               extracted_region='right_cerebrum',
+                                               file_name='sub-{}'.format(subject),
+                                               save_data=True,
+                                               output_dir=output_dir)
 
-    #extract_layout = BIDSLayout(os.path.join('/derivatives',
-                                             #'nighres',
-                                             #'cortex_extraction'))
+    wm_fmriprep = image.resample_to_img(wm_fmriprep, cortex_right['inside_proba'], interpolation='nearest')
+    gm_fmriprep = image.resample_to_img(gm_fmriprep, cortex_right['inside_proba'], interpolation='nearest')
+    csf_fmriprep = image.resample_to_img(csf_fmriprep, cortex_right['inside_proba'], interpolation='nearest')
 
-    #cruise = nighres.cortex.cruise_cortex_extraction(
-                            #init_image=cortex['inside_mask'],
-                            #wm_image=cortex['inside_proba'],
-                            #gm_image=cortex['region_proba'],
-                            #csf_image=cortex['background_proba'],
-                            #normalize_probabilities=True,
-                            #file_name='sub-{}_right'.format(subject),
-                            #save_data=True,
-                            #output_dir=output_dir)
+    wm_seg_right = image.math_img('fmriprep + cbs + manual*5', 
+                                 cbs=cortex_right['inside_proba'],
+                                 fmriprep=wm_fmriprep,
+                                 manual=wm_manual)
+
+    gm_seg_right = image.math_img('fmriprep + cbs + manual*5', 
+                                 cbs=cortex_right['region_proba'],
+                                 fmriprep=gm_fmriprep,
+                                 manual=gm_manual)
+
+    csf_seg_right = image.math_img('2 * cbs', 
+                                 cbs=cortex_right['background_proba'],
+                                 fmriprep=csf_fmriprep)
+
+    total_prob = image.math_img('wm_seg_right + gm_seg_right + csf_seg_right',
+                                wm_seg_right=wm_seg_right,
+                                gm_seg_right=gm_seg_right,
+                                csf_seg_right=csf_seg_right)
+
+    wm_seg_right = image.math_img('wm_seg_right / total_prob',
+                                 wm_seg_right=wm_seg_right,
+                                 total_prob=total_prob)
+    wm_seg_right.to_filename('/derivatives/zooi/wm_seg_right.nii.gz')
+
+    gm_seg_right = image.math_img('gm_seg_right / total_prob',
+                                 gm_seg_right=gm_seg_right,
+                                 total_prob=total_prob)
+    gm_seg_right.to_filename('/derivatives/zooi/gm_seg_right.nii.gz')
+
+    csf_seg_right = image.math_img('csf_seg_right / total_prob',
+                                  csf_seg_right=csf_seg_right,
+                                  total_prob=total_prob)
+    csf_seg_right.to_filename('/derivatives/zooi/csf_seg_right.nii.gz')
+
+    cruise = nighres.cortex.cruise_cortex_extraction(
+                            init_image=cortex_right['inside_mask'],
+                            wm_image=wm_seg_right,
+                            gm_image=gm_seg_right,
+                            csf_image=csf_seg_right,
+                            normalize_probabilities=False,
+                            file_name='sub-{}_right'.format(subject),
+                            save_data=True,
+                            output_dir=output_dir)
 
 
     # LEFT
@@ -91,9 +128,6 @@ def main(sourcedata,
                                        save_data=True,
                                        output_dir=output_dir)
 
-    wm_fmriprep = image.resample_to_img(wm_fmriprep, cortex['inside_proba'], interpolation='nearest')
-    gm_fmriprep = image.resample_to_img(gm_fmriprep, cortex['inside_proba'], interpolation='nearest')
-    csf_fmriprep = image.resample_to_img(csf_fmriprep, cortex['inside_proba'], interpolation='nearest')
 
     wm_seg_left = image.math_img('fmriprep + cbs + manual*5', 
                                  cbs=cortex['inside_proba'],
