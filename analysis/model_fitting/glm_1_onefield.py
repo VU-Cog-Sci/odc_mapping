@@ -29,9 +29,8 @@ def main(sourcedata,
                                   type='mask',
                                   return_type='file')[0]
 
-    print(mask)
-
     mask = image.math_img('(im > .5).astype(int)', im=mask)
+    print(mask)
 
     df = events.merge(bold, on=['subject', 'session', 'run'],
                            suffixes=('_events','_bold'))
@@ -50,7 +49,7 @@ def main(sourcedata,
         print('Fitting {}'.format(row['path_bold']))
         model = FirstLevelModel(t_r=4,
                                 mask=mask)
-        paradigm = pd.read_table(events.iloc[0]['path'])
+        paradigm = pd.read_table(row['path_events'])
         paradigm_short = paradigm.copy()
         paradigm_short['duration'] = 1
         paradigm_short['trial_type'] = paradigm_short['trial_type'].map(lambda x: '{}_instant'.format(x))
@@ -103,12 +102,6 @@ def main(sourcedata,
                                               'sub-{}_ses-{}_left_over_right_effect_size.nii.gz'.format(row['subject'], 
                                                                                                  row['session'])))
     
-    left_right_group =second_level_model.compute_contrast(
-        first_level_contrast='eye_L - eye_R',
-        output_type='z_score')
-    left_right_group.to_filename(os.path.join(results_dir, 
-                                              'sub-{}_ses-{}_left_over_right_zmap.nii.gz'.format(row['subject'], 
-                                                                                                 row['session'])))
 
 
 if __name__ == '__main__':
@@ -124,7 +117,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main('/sourcedata', 
-         '/derivatives',
+         '/derivatives/onefield',
          subject=args.subject,
          session=args.session,
          tmp_dir='/workflow_folders')

@@ -29,10 +29,6 @@ def main(sourcedata,
                                   type='mask',
                                   return_type='file')[0]
 
-    print(mask)
-
-    mask = image.math_img('(im > .5).astype(int)', im=mask)
-
     df = events.merge(bold, on=['subject', 'session', 'run'],
                            suffixes=('_events','_bold'))
     
@@ -41,6 +37,7 @@ def main(sourcedata,
 
         results_dir = os.path.join(derivatives, 
                                    'modelfitting', 
+                                   'glm2',
                                    'sub-{}'.format(row['subject']))
         if 'session' in row:
             results_dir = os.path.join(results_dir, 'ses-{}'.format(row['session']))
@@ -50,11 +47,7 @@ def main(sourcedata,
         print('Fitting {}'.format(row['path_bold']))
         model = FirstLevelModel(t_r=4,
                                 mask=mask)
-        paradigm = pd.read_table(events.iloc[0]['path'])
-        paradigm_short = paradigm.copy()
-        paradigm_short['duration'] = 1
-        paradigm_short['trial_type'] = paradigm_short['trial_type'].map(lambda x: '{}_instant'.format(x))
-        paradigm = pd.concat((paradigm, paradigm_short))
+        paradigm = pd.read_table(row['path_events'])
         model.fit(row['path_bold'], paradigm)
 
         left_right = model.compute_contrast('eye_L - eye_R', output_type='z_score')
@@ -65,25 +58,6 @@ def main(sourcedata,
         left_right.to_filename(os.path.join(results_dir, 'sub-{}_ses-{}_run-{}_left_over_right_psc.nii.gz'.format(row['subject'], 
                                                                                                                    row['session'],
                                                                                                                    row['run'])))
-
-        eye_l_instant = model.compute_contrast('eye_L_instant', output_type='z_score')
-        eye_l_instant.to_filename(os.path.join(results_dir, 'sub-{}_ses-{}_run-{}_eye_l_instant_zmap.nii.gz'.format(row['subject'], 
-                                                                                                                   row['session'],
-                                                                                                                   row['run'])))
-        eye_l_instant = model.compute_contrast('eye_L_instant', output_type='effect_size')
-        eye_l_instant.to_filename(os.path.join(results_dir, 'sub-{}_ses-{}_run-{}_eye_l_instant_effect_size.nii.gz'.format(row['subject'], 
-                                                                                                                           row['session'],
-                                                                                                                           row['run'])))
-
-        eye_r_instant = model.compute_contrast('eye_R_instant', output_type='z_score')
-        eye_r_instant.to_filename(os.path.join(results_dir, 'sub-{}_ses-{}_run-{}_eye_r_instant_zmap.nii.gz'.format(row['subject'], 
-                                                                                                                   row['session'],
-                                                                                                                   row['run'])))
-        eye_r_instant = model.compute_contrast('eye_R_instant', output_type='effect_size')
-        eye_r_instant.to_filename(os.path.join(results_dir, 'sub-{}_ses-{}_run-{}_eye_R_instant_effect_size.nii.gz'.format(row['subject'], 
-                                                                                                                           row['session'],
-                                                                                                                           row['run'])))
-
         models.append(model)
 
     second_level_model = SecondLevelModel(mask=mask)
