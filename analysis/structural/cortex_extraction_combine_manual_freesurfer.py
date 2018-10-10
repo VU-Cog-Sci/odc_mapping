@@ -15,177 +15,97 @@ def main(sourcedata,
          subject=None):
 
 
-    segment_layout = BIDSLayout(os.path.join(derivatives,
-                                             'nighres',
-                                             'segmentation_dilation'))
-
     fmriprep_layout = BIDSLayout(os.path.join(derivatives,
                                               'fmriprep'))
     
     manual_layout = BIDSLayout(os.path.join(derivatives,
                                               'manual_segmentation'))
 
-    wm_manual = get_bids_file(manual_layout, subject, 'manualsegwm')
-    gm_manual = get_bids_file(manual_layout, subject, 'manualseggm')
+    manual = {}
+    manual['wm'] = get_bids_file(manual_layout, subject, 'manualsegwm')
+    manual['gm'] = get_bids_file(manual_layout, subject, 'manualseggm')
 
 
-    wm_fmriprep = get_bids_file(fmriprep_layout, subject, 'probtissue', 'WM')
-    gm_fmriprep = get_bids_file(fmriprep_layout, subject, 'probtissue', 'GM')
-    csf_fmriprep = get_bids_file(fmriprep_layout, subject, 'probtissue', 'CSF')
+    fmriprep = {}
+    fmriprep['wm'] = get_bids_file(fmriprep_layout, subject, 'probtissue', 'WM')
+    fmriprep['gm'] = get_bids_file(fmriprep_layout, subject, 'probtissue', 'GM')
+    fmriprep['csf'] = get_bids_file(fmriprep_layout, subject, 'probtissue', 'CSF')
 
     
-
-    segmentation = get_bids_file(segment_layout, 
-                                 subject,
-                                 'seg')
-
-    boundary_dist = get_bids_file(segment_layout, 
-                                 subject,
-                                 'dist')
-
-    max_labels = get_bids_file(segment_layout, 
-                                 subject,
-                                 'lbls')
-
-    max_probas = get_bids_file(segment_layout, 
-                               subject,
-                               'mems')
-
-
-    output_dir = os.path.join(derivatives,
-                              'nighres',
-                              'cortex_extraction_combine_manual_freesurfer',
-                              'sub-{}'.format(subject))
-
     extract_layout = BIDSLayout(os.path.join(derivatives,
                                              'nighres',
                                              'cortex_extraction'))
-    # RIGHT
-    cortex_right = nighres.brain.extract_brain_region(segmentation=segmentation,
-                                               levelset_boundary=boundary_dist,
-                                               maximum_membership=max_probas,
-                                               maximum_label=max_labels,
-                                               extracted_region='right_cerebrum',
-                                               file_name='sub-{}'.format(subject),
-                                               save_data=True,
-                                               output_dir=output_dir)
+
+    output_dir = os.path.join(derivatives,
+                              'nighres',
+                              'cortex_extraction',
+                              'sub-{}'.format(subject))
 
     freesurfer_seg = get_bids_file(fmriprep_layout, subject, 'roi', 'label-aseg')
-    print(freesurfer_seg)
 
-    freesurfer_seg = image.resample_to_img(freesurfer_seg, cortex_right['inside_proba'], interpolation='nearest')
-    wm_freesurfer_left = image.math_img('(seg == 2).astype(int)', seg=freesurfer_seg)
-    gm_freesurfer_left = image.math_img('(seg == 3).astype(int)', seg=freesurfer_seg)
+    _regions = ['wm', 'csf', 'gm']
 
-    wm_freesurfer_right = image.math_img('(seg == 41).astype(int)', seg=freesurfer_seg)
-    gm_freesurfer_right = image.math_img('(seg == 42).astype(int)', seg=freesurfer_seg)
+    for hemi in ['left', 'right']:
 
-    wm_fmriprep = image.resample_to_img(wm_fmriprep, cortex_right['inside_proba'], interpolation='nearest')
-    gm_fmriprep = image.resample_to_img(gm_fmriprep, cortex_right['inside_proba'], interpolation='nearest')
-    csf_fmriprep = image.resample_to_img(csf_fmriprep, cortex_right['inside_proba'], interpolation='nearest')
+        mgdm = {}
+        for r in _regions:
+            mgdm[r] = get_bids_file(extract_layout, subject, 'p{}'.format(r), hemi)
 
-    wm_seg_right = image.math_img('fmriprep + cbs + freesurfer + manual*5', 
-                                 cbs=cortex_right['inside_proba'],
-                                 fmriprep=wm_fmriprep,
-                                  freesurfer=wm_freesurfer_right,
-                                 manual=wm_manual)
+        freesurfer_seg = image.resample_to_img(freesurfer_seg, 
+                                               mgdm['gm'], 
+                                               interpolation='nearest')
 
-    gm_seg_right = image.math_img('fmriprep + cbs + freesurfer +  manual*5', 
-                                  cbs=cortex_right['region_proba'],
-                                  fmriprep=gm_fmriprep,
-                                  freesurfer=gm_freesurfer_right,
-                                  manual=gm_manual)
+        freesurfer = {}
+        if hemi == 'left':
+            freesurfer['wm'] = image.math_img('(seg == 2).astype(int)', seg=freesurfer_seg)
+            freesurfer['gm'] = image.math_img('(seg == 3).astype(int)', seg=freesurfer_seg)
+        else:
+            freesurfer['wm']  = image.math_img('(seg == 41).astype(int)', seg=freesurfer_seg)
+            freesurfer['gm'] = image.math_img('(seg == 42).astype(int)', seg=freesurfer_seg)
 
-    csf_seg_right = image.math_img('3 * cbs', 
-                                 cbs=cortex_right['background_proba'])
+        for key in freesurfer:
+            freesurfer[key] = image.resample_to_img(freesurfer[key], mgdm['gm'], interpolation='nearest')
+            
 
-    total_prob = image.math_img('wm_seg_right + gm_seg_right + csf_seg_right',
-                                wm_seg_right=wm_seg_right,
-                                gm_seg_right=gm_seg_right,
-                                csf_seg_right=csf_seg_right)
+        for key in _regions:
+            fmriprep[key] = image.resample_to_img(fmriprep[key], mgdm[key], interpolation='nearest')
 
-    wm_seg_right = image.math_img('wm_seg_right / total_prob',
-                                 wm_seg_right=wm_seg_right,
-                                 total_prob=total_prob)
-    wm_seg_right.to_filename('/derivatives/zooi/wm_seg_right.nii.gz')
+        wm = image.math_img('fmriprep + mgdm + freesurfer + manual*5', 
+                            mgdm=mgdm['wm'],
+                            fmriprep=fmriprep['wm'],
+                            freesurfer=freesurfer['wm'],
+                            manual=manual['wm'])
 
-    gm_seg_right = image.math_img('gm_seg_right / total_prob',
-                                 gm_seg_right=gm_seg_right,
-                                 total_prob=total_prob)
-    gm_seg_right.to_filename('/derivatives/zooi/gm_seg_right.nii.gz')
+        gm = image.math_img('fmriprep + mgdm + freesurfer +  manual*5', 
+                            mgdm=mgdm['gm'],
+                            fmriprep=fmriprep['gm'],
+                            freesurfer=freesurfer['gm'],
+                            manual=manual['gm'])
 
-    csf_seg_right = image.math_img('csf_seg_right / total_prob',
-                                  csf_seg_right=csf_seg_right,
-                                  total_prob=total_prob)
-    csf_seg_right.to_filename('/derivatives/zooi/csf_seg_right.nii.gz')
+        csf = image.math_img('3 * mgdm', mgdm=mgdm['csf'])
 
-    cruise = nighres.cortex.cruise_cortex_extraction(
-                            init_image=cortex_right['inside_mask'],
-                            wm_image=wm_seg_right,
-                            gm_image=gm_seg_right,
-                            csf_image=csf_seg_right,
-                            normalize_probabilities=False,
-                            file_name='sub-{}_right'.format(subject),
-                            save_data=True,
-                            output_dir=output_dir)
+        total_prob = image.math_img('wm + gm + csf',
+                                    wm=wm,
+                                    gm=gm,
+                                    csf=csf)
 
+        wm = image.math_img('wm / total_prob', wm=wm, total_prob=total_prob)
+        gm = image.math_img('gm / total_prob', gm=gm, total_prob=total_prob)
+        csf = image.math_img('csf / total_prob', csf=csf, total_prob=total_prob)
 
-    # LEFT
-    cortex = nighres.brain.extract_brain_region(segmentation=segmentation,
-                                       levelset_boundary=boundary_dist,
-                                       maximum_membership=max_probas,
-                                       maximum_label=max_labels,
-                                       extracted_region='left_cerebrum',
-                                       file_name='sub-{}'.format(subject),
-                                       save_data=True,
-                                       output_dir=output_dir)
+        inside_mask = image.math_img('wm > 0.45', wm=wm)
+        inside_mask = image.largest_connected_component_img(inside_mask)
 
+        cruise = nighres.cortex.cruise_cortex_extraction(
+                                init_image=inside_mask,
+                                wm_image=wm,
+                                gm_image=gm,
+                                csf_image=csf,
+                                normalize_probabilities=False,
+                                file_name='sub-{}_{}'.format(subject, hemi),
+                                save_data=True,
+                                output_dir=output_dir)
 
-    wm_seg_left = image.math_img('fmriprep + cbs + freesurfer + manual*5', 
-                                 cbs=cortex['inside_proba'],
-                                 freesurfer=wm_freesurfer_left,
-                                 fmriprep=wm_fmriprep,
-                                 manual=wm_manual)
-
-    gm_seg_left = image.math_img('fmriprep + cbs + freesurfer + manual*5', 
-                                 cbs=cortex['region_proba'],
-                                 freesurfer=gm_freesurfer_left,
-                                 fmriprep=gm_fmriprep,
-                                 manual=gm_manual)
-
-    csf_seg_left = image.math_img('3 * cbs', 
-                                 cbs=cortex['background_proba'],
-                                 fmriprep=csf_fmriprep)
-
-    total_prob = image.math_img('wm_seg_left + gm_seg_left + csf_seg_left',
-                                wm_seg_left=wm_seg_left,
-                                gm_seg_left=gm_seg_left,
-                                csf_seg_left=csf_seg_left)
-
-    wm_seg_left = image.math_img('wm_seg_left / total_prob',
-                                 wm_seg_left=wm_seg_left,
-                                 total_prob=total_prob)
-    wm_seg_left.to_filename('/derivatives/zooi/wm_seg_left.nii.gz')
-
-    gm_seg_left = image.math_img('gm_seg_left / total_prob',
-                                 gm_seg_left=gm_seg_left,
-                                 total_prob=total_prob)
-    gm_seg_left.to_filename('/derivatives/zooi/gm_seg_left.nii.gz')
-
-    csf_seg_left = image.math_img('csf_seg_left / total_prob',
-                                  csf_seg_left=csf_seg_left,
-                                  total_prob=total_prob)
-    csf_seg_left.to_filename('/derivatives/zooi/csf_seg_left.nii.gz')
-
-    cruise = nighres.cortex.cruise_cortex_extraction(
-                            init_image=cortex['inside_mask'],
-                            wm_image=wm_seg_left,
-                            gm_image=gm_seg_left,
-                            csf_image=csf_seg_left,
-                            normalize_probabilities=False,
-                            file_name='sub-{}_left'.format(subject),
-                            save_data=True,
-                            output_dir=output_dir)
 
 def get_bids_file(layout,
                   subject,
@@ -199,6 +119,9 @@ def get_bids_file(layout,
     if filter is not None:
         img = [im for im in img if filter in im]
 
+    if len(img) == 0:
+        raise Exception('Found no image for {}, {}'.format(modality, 
+                                                           filter))
     if len(img) > 1:
         warnings.warn('Found more than one {}-image, using {}'.format(modality,
                                                                       img[0]))
