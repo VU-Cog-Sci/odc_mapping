@@ -8,6 +8,7 @@ import warnings
 from nilearn import image
 from scipy import ndimage
 import nibabel as nb
+from scipy import ndimage
 
 def main(sourcedata, 
          derivatives,
@@ -34,7 +35,7 @@ def main(sourcedata,
     
     extract_layout = BIDSLayout(os.path.join(derivatives,
                                              'nighres',
-                                             'cortex_extraction'))
+                                             'extract_brain_regions'))
 
     output_dir = os.path.join(derivatives,
                               'nighres',
@@ -45,11 +46,12 @@ def main(sourcedata,
 
     _regions = ['wm', 'csf', 'gm']
 
-    for hemi in ['left', 'right']:
+    for hemi in ['left', 'right'][::-1]:
 
         mgdm = {}
         for r in _regions:
-            mgdm[r] = get_bids_file(extract_layout, subject, 'p{}'.format(r), hemi)
+            label = {'csf':'bg', 'wm':'wm', 'gm':'gm'}[r]
+            mgdm[r] = get_bids_file(extract_layout, subject, '{}cr{}'.format(hemi[0], label), 'xproba')
 
         freesurfer_seg = image.resample_to_img(freesurfer_seg, 
                                                mgdm['gm'], 
@@ -93,8 +95,17 @@ def main(sourcedata,
         gm = image.math_img('gm / total_prob', gm=gm, total_prob=total_prob)
         csf = image.math_img('csf / total_prob', csf=csf, total_prob=total_prob)
 
+        wm.to_filename('/derivatives/zooi/wm_mask_{}.nii.gz'.format(hemi))
+        gm.to_filename('/derivatives/zooi/gm_mask_{}.nii.gz'.format(hemi))
+        csf.to_filename('/derivatives/zooi/csf_mask_{}.nii.gz'.format(hemi))
+
         inside_mask = image.math_img('wm > 0.45', wm=wm)
         inside_mask = image.largest_connected_component_img(inside_mask)
+        inside_mask.to_filename('/derivatives/zooi/inside_mask_{}.nii.gz'.format(hemi))
+
+        inside_mask = image.new_img_like(inside_mask,
+                                         ndimage.binary_closing(inside_mask.get_data(), 
+                                                                iterations=3))
 
         cruise = nighres.cortex.cruise_cortex_extraction(
                                 init_image=inside_mask,
