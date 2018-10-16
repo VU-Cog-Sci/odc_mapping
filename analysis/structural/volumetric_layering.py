@@ -18,7 +18,7 @@ def main(sourcedata,
 
     cruise_layout = BIDSLayout(os.path.join(derivatives,
                                              'nighres',
-                                             'cortex_extraction_combine_manual_freesurfer'))
+                                             'cortex_extraction'))
 
 
     for hemi in ['right', 'left']:
