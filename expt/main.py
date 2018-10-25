@@ -1,8 +1,24 @@
 from session import ODCSession
+import argparse
 
-def main():
-    session = ODCSession(simulate_mri_trigger=True)
+def main(subject, run, reset):
+    session = ODCSession(subject_initials=subject,
+                         index_number=run,
+                         reset_positions=reset,
+                         simulate_mri_trigger=True)
     session.run()
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("subject",
+                        #nargs='?',
+                        type=str,
+                        help="Subject experiment")
+    parser.add_argument("run",
+                        type=str,
+                        default='*',
+                        help="Run experiment")
+    args = parser.parse_args()
+    main(subject=args.subject,
+         run=args.run,
+         reset=args.reset)
