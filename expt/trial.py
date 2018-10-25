@@ -8,7 +8,6 @@ from stimuli import StimulusSet, StimulusSetToPosition
 class StimulationTrial(MRITrial):
 
     def __init__(self, 
-                 ID=None,
                  session=None,
                  parameters={},
                  *args, 
@@ -24,8 +23,7 @@ class StimulationTrial(MRITrial):
 
         super(
             StimulationTrial,
-            self).__init__(ID=ID,
-                           phase_durations=phase_durations,
+            self).__init__(phase_durations=phase_durations,
                            session=session,
                            parameters=parameters,
                            *args,
@@ -224,7 +222,6 @@ class PositioningTrial(Trial):
         super(
             PositioningTrial,
             self).__init__(parameters=parameters,
-                           ID='position',
                            phase_durations=phase_durations,
                            *args,
                            **kwargs)
