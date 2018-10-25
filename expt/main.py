@@ -18,6 +18,10 @@ if __name__ == '__main__':
                         type=str,
                         default='*',
                         help="Run experiment")
+    parser.add_argument("-r",
+                        "--reset",
+                        action='store_true',
+                        help="Whether to reset positiong parameters to default.")
     args = parser.parse_args()
     main(subject=args.subject,
          run=args.run,

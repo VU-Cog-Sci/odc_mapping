@@ -7,12 +7,13 @@ import pandas as pd
 
 class ODCSession(MRISession):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, reset_positions=False, *args, **kwargs):
         super(ODCSession, self).__init__(*args, **kwargs)
 
-        parameters = self.find_parameters_subject()
+        if not reset_positions:
+            parameters = self.find_parameters_subject()
 
-        if parameters is None:
+        if reset_positions or (parameters is None):
             parameters = self.get_default_parameters()
 
         self.framerate = self.config.get('screen', 'framerate')
