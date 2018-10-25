@@ -11,6 +11,9 @@ global:
     mouse_visible: False
     screen_nr: 2
     framerate: 60
+    foreground_color: [1,1,1]
+    linearize_gamma: True
+    min_lums: [0, 0, 0]
 
   stimuli:
     x_offset_left_eye: 0
