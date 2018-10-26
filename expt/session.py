@@ -1,9 +1,10 @@
 from exptools.core.session import MRISession
 from stimuli import StimulusSet, StimulusSetToPosition
-from trial import PositioningTrial, StimulationTrial
+from trial import PositioningTrial, StimulationTrial, PRFTrial
 import numpy as np
 import glob
 import pandas as pd
+
 
 class ODCSession(MRISession):
 
@@ -21,7 +22,12 @@ class ODCSession(MRISession):
         self.positioning_trial = PositioningTrial(session=self,
                                                   parameters=parameters)
 
+    
+    def get_default_parameters(self):
+        return _get_default_parameters(self)
 
+    def find_parameters_subject(self):
+        return _find_parameters_subject(self)
         
     def run(self):
         """run the session"""
@@ -39,6 +45,7 @@ class ODCSession(MRISession):
         parameters['monocular_durations'] = self.config.get('task', 'duration_per_eye')
         parameters['checkerboard_cycles_per_degree'] = self.config.get('stimuli', 'checkerboard_cycles_per_degree')
         parameters['checkerboard_type'] = self.config.get('stimuli', 'checkerboard_type')
+        parameters['cross_circle_ratio'] = self.config.get('checker_cross', 'ratio_to_circle')
 
         self.flicker_trial = StimulationTrial(session=self,
                                               parameters=parameters)
@@ -55,46 +62,106 @@ class ODCSession(MRISession):
         self.close()
     
 
+
+
+class PRFSession(MRISession):
+
+    def __init__(self, reset_positions=False, *args, **kwargs):
+        super(PRFSession, self).__init__(*args, **kwargs)
+
+        if not reset_positions:
+            parameters = self.find_parameters_subject()
+
+        if reset_positions or (parameters is None):
+            parameters = self.get_default_parameters()
+
+
+        # Put PRF parameters in parameter dict
+        for par in ['num_elements',
+                    'fast_speed',
+                    'slow_speed',
+                    'element_size',
+                    'element_spatial_frequency',
+                    'color_ratio',
+                    'element_lifetime',
+                    'bar_width_ratio',
+                    'bar_pass_duration']:
+            parameters[par] = self.config.get('prf', par)
+
+        parameters['RG_color'] = 1/parameters['color_ratio']
+        parameters['BY_color'] = 1
+
+        parameters['cross_circle_ratio'] = self.config.get('checker_cross', 'ratio_to_circle')
+        parameters['rim_ratio'] = self.config.get('rim', 'rim_ratio')
+
+        self.framerate = self.config.get('screen', 'framerate')
+
+        self.positioning_trial = PositioningTrial(session=self,
+                                                  parameters=parameters)
+
+
+    def get_default_parameters(self):
+        return _get_default_parameters(self)
+
     def find_parameters_subject(self):
+        return _find_parameters_subject(self)
+    
+    def run(self):
+        """run the session"""
 
-        fns = sorted(glob.glob('data/{}*.tsv'.format(self.subject_initials)))
+        self.positioning_trial.run()
 
-        if len(fns) == 0:
-            return None
+        parameters = self.positioning_trial.parameters
+        parameters['framerate'] = self.framerate
 
-        fn = fns[-1]
 
-        data = pd.read_table(fn, index_col=0)
+        self.prf_trial = PRFTrial(session=self, parameters=parameters)
 
-        return data.iloc[0].to_dict()
+        self.prf_trial.run()
+
+        self.stop()
+        self.close()
 
     
-    def get_default_parameters(self):
+def _get_default_parameters(session):
 
-        x_offset_left_eye = self.config.get('stimuli', 'x_offset_left_eye')
-        y_offset_left_eye = self.config.get('stimuli', 'y_offset_left_eye')
+    x_offset_left_eye = self.config.get('stimuli', 'x_offset_left_eye')
+    y_offset_left_eye = self.config.get('stimuli', 'y_offset_left_eye')
 
-        x_offset_right_eye = self.config.get('stimuli', 'x_offset_right_eye')
-        y_offset_right_eye = self.config.get('stimuli', 'y_offset_right_eye')
+    x_offset_right_eye = self.config.get('stimuli', 'x_offset_right_eye')
+    y_offset_right_eye = self.config.get('stimuli', 'y_offset_right_eye')
 
-        screen_size_deg = self.pix2deg(self.screen.size)
+    screen_size_deg = self.pix2deg(self.screen.size)
 
-        left_x = -screen_size_deg[0] / 4 - x_offset_left_eye
-        left_y = y_offset_left_eye
+    left_x = -screen_size_deg[0] / 4 - x_offset_left_eye
+    left_y = y_offset_left_eye
 
-        right_x = screen_size_deg[0] / 4 + x_offset_right_eye
-        right_y = y_offset_right_eye
+    right_x = screen_size_deg[0] / 4 + x_offset_right_eye
+    right_y = y_offset_right_eye
 
-        left_size = self.config.get('stimuli', 'left_size')
-        right_size = self.config.get('stimuli', 'right_size')
+    left_size = self.config.get('stimuli', 'left_size')
+    right_size = self.config.get('stimuli', 'right_size')
 
-        settings = {'left_x':left_x,
-                    'left_y':left_y,
-                    'left_size':left_size,
-                    'left_ori':0,
-                    'right_x':right_x,
-                    'right_y':right_y,
-                    'right_size':right_size,
-                    'right_ori':0}
+    settings = {'left_x':left_x,
+                'left_y':left_y,
+                'left_size':left_size,
+                'left_ori':0,
+                'right_x':right_x,
+                'right_y':right_y,
+                'right_size':right_size,
+                'right_ori':0}
 
-        return settings
+    return settings
+
+def _find_parameters_subject(session):
+
+    fns = sorted(glob.glob('data/{}*.tsv'.format(session.subject_initials)))
+
+    if len(fns) == 0:
+        return None
+
+    fn = fns[-1]
+
+    data = pd.read_table(fn, index_col=0)
+
+    return data.iloc[0].to_dict()

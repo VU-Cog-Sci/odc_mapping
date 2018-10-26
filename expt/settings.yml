@@ -1,11 +1,11 @@
 global:
   screen:
-    size: [2560, 1440]
+    size: [1600, 1200]
     full_screen: False
     background_color: [-1, -1, -1]
     gamma_scale: [2.475,2.25,2.15]
     physical_screen_size: [58, 36]
-    physical_screen_distance: 25
+    physical_screen_distance: 50
     max_lums: [24.52, 78.8, 10.19]
     wait_blanking: True
     mouse_visible: False
@@ -61,3 +61,14 @@ global:
 
   mri:
     mri_trigger_key: 't'
+
+  prf:
+    num_elements: 2000
+    fast_speed: 12.0       
+    slow_speed: 3.0        
+    element_size: 45.0        
+    element_spatial_frequency: 2      
+    color_ratio: 0.5
+    element_lifetime: 0.05
+    bar_pass_duration: 10
+    bar_width_ratio: 0.125

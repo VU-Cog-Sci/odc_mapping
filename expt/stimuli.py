@@ -1,6 +1,6 @@
 import numpy as np
 import psychopy
-from psychopy.visual import Line, GratingStim, TextStim, RadialStim
+from psychopy.visual import Line, GratingStim, TextStim, RadialStim, ElementArrayStim
 from psychopy.visual.filters import makeMask
 from psychopy.tools.unittools import radians
 from psychopy.tools.attributetools import setAttribute, attributeSetter
@@ -268,13 +268,14 @@ class CheckerBoardCross(ImageBased):
         y = np.linspace(-1, 1, board.shape[1])
 
         xv, yv = np.meshgrid(x, y)
-        mask = (xv**2 + yv**2 < self.ratio_inner_circle)
+        mask = (xv**2 + yv**2 > self.ratio_inner_circle)
 
-        board[mask] = -1
-
+        board[cross == -1] = -1
         board = board if not self.inverted else board * -1
 
-        return board, cross
+        mask = mask * 2 - 1
+
+        return board, mask
 
 class FixationPoint(object):
 
@@ -358,6 +359,11 @@ class StimulusSet(object):
                                            size=checkerboard_size,
                                            angularCycles=side_len,
                                            radialCycles=side_len /4)
+
+        elif checkerboard_type == 'none':
+            self.checkerboard = GratingStim(self.screen,
+                                          opacity=0)
+
         else:
             ValueError('{} is not a valid checkerboard type'.format(checkerboard_type))
 
@@ -444,3 +450,142 @@ class StimulusSetToPosition(StimulusSet):
 
     def set_text(self, text):
         self.text_stimulus.text = text
+
+class PRFStim(object):
+    def __init__(self,
+                 screen,
+                 pos,
+                 size,
+                 session,
+                 orientation,
+                 parameters):
+        # parameters
+
+
+        self.session = session
+        self.screen = screen
+
+        self.size_pix = self.session.deg2pix(size)
+        self.pos = [self.session.deg2pix(pos[0]), self.session.deg2pix(pos[1])]
+
+        self.orientation = orientation    # convert to radians immediately, and use to calculate rotation matrix
+        self.rotation_matrix = np.matrix([[np.cos(self.orientation), -np.sin(self.orientation)],
+                                          [np.sin(self.orientation), np.cos(self.orientation)]])
+        # self.refresh_frequency = session.redraws_per_TR / session.standard_parameters['TR
+
+        self.parameters = parameters
+
+        self.RG_color = self.parameters['RG_color']
+        self.BY_color = self.parameters['BY_color']
+
+        self.fast_speed = self.parameters['fast_speed']
+        self.slow_speed = self.parameters['slow_speed']
+        
+        # print(self.orientation)
+
+        self.bar_width = self.parameters['bar_width_ratio'] * self.size_pix
+        self.bar_length = self.size_pix
+
+        self.num_elements = self.parameters['num_elements']
+        
+        self.period = self.parameters['bar_pass_duration']
+
+        self.full_width = self.size_pix + self.bar_width + self.parameters['element_size']
+        self.midpoint = np.array(self.pos)
+
+        # this is for determining ecc, which we make dependent on largest screen dimension
+
+        self.phase = 0
+        # bookkeeping variables
+        self.eccentricity_bin = -1
+        self.redraws = 0
+        self.frames = 0
+
+        # psychopy stimuli
+        self.populate_stimulus()
+
+        # create the stimulus
+        self.element_array = ElementArrayStim(screen,
+                                              nElements=self.parameters['num_elements'],
+                                              sizes=self.element_sizes,
+                                              sfs=self.element_sfs,
+                                              xys=self.element_positions,
+                                              colors=self.colors,
+                                              colorSpace='rgb')
+
+
+    def convert_sample(self,in_sample):
+        return 1 - (1/(np.e**in_sample+1))
+    
+    def populate_stimulus(self):
+
+        RG_ratio = 0.5
+        BY_ratio = 0.5
+        fast_ratio = 0.5
+        slow_ratio = 0.5
+
+        # set the default colors
+        self.colors = np.ones((self.num_elements,3)) * 0.5
+        self.fix_gray_value = self.session.background_color
+
+        # and change them if a pulse is wanted
+
+        # Now set the actual stimulus parameters
+        self.colors = np.concatenate((np.ones((int(np.round(self.num_elements*RG_ratio/2.0)),3)) * np.array([1,-1,0]) * self.RG_color,  # red/green - red
+                                    np.ones((int(np.round(self.num_elements*RG_ratio/2.0)),3)) * np.array([-1,1,0]) * self.RG_color,  # red/green - green
+                                    np.ones((int(np.round(self.num_elements*BY_ratio/2.0)),3)) * np.array([-1,-1,1]) * self.BY_color,  # blue/yellow - blue
+                                    np.ones((int(np.round(self.num_elements*BY_ratio/2.0)),3)) * np.array([1,1,-1]) * self.BY_color))  # blue/yellow - yellow
+
+    
+        np.random.shuffle(self.colors)
+
+        # but do update all other stim parameters (regardless of pulse)
+        self.element_speeds = np.concatenate((np.ones(int(np.round(self.num_elements*fast_ratio))) * self.parameters['fast_speed'],
+                                            np.ones(int(np.round(self.num_elements*slow_ratio))) * self.parameters['slow_speed']))
+        np.random.shuffle(self.element_speeds)
+
+        self.element_positions = np.random.rand(self.num_elements, 2) * \
+            np.array([self.bar_length, self.bar_width]) - \
+            np.array([self.bar_length/2.0, self.bar_width/2.0])
+
+        self.element_positions += self.pos
+
+        # self.element_sfs = np.ones((self.num_elements)) * self.session.element_spatial_frequency']
+        self.element_sfs = np.random.rand(self.num_elements)*7+0.25
+        self.element_sizes = np.ones((self.num_elements)) * self.parameters['element_size']
+        self.element_phases = np.zeros(self.num_elements)
+        self.element_orientations = np.random.rand(self.num_elements) * 720.0 - 360.0
+
+        self.lifetimes = np.random.rand(self.num_elements) * self.parameters['element_lifetime']
+
+    def draw(self, phase=0):
+
+        self.phase = phase
+        self.frames += 1
+
+        to_be_redrawn = self.lifetimes < phase
+        self.element_positions[to_be_redrawn] = np.random.rand(to_be_redrawn.sum(), 2) \
+                * np.array([self.bar_length, self.bar_width]) \
+                - np.array([self.bar_length/2.0, self.bar_width/2.0])     
+        self.lifetimes[to_be_redrawn] += np.random.rand(to_be_redrawn.sum()) * self.parameters['element_lifetime']
+
+        # define midpoint
+        self.midpoint = phase * self.full_width - 0.5 * self.full_width #+ self.session.x_offset']
+
+        self.element_array.setSfs(self.element_sfs)
+        self.element_array.setSizes(self.element_sizes)
+        self.element_array.setColors(self.colors)
+        self.element_array.setOris(self.element_orientations)
+
+        delta_pos = np.array([0, -self.midpoint]).dot(self.rotation_matrix)
+
+        self.element_array.setXYs(self.element_positions.dot(self.rotation_matrix) + delta_pos + self.pos)
+        self.element_array.setPhases(self.element_speeds * self.phase * self.period + self.element_phases)
+
+        #if self.frames % 30 == 0:
+            #print(self.getXYs())
+
+
+        self.element_array.draw()
+        #self.element_array.setXYs(self.element_positions + delta_pos * 3)            
+        #self.element_array.draw()

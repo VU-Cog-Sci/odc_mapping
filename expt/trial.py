@@ -2,7 +2,7 @@ from exptools.core import Trial, MRITrial
 from psychopy import event, visual
 import itertools
 import numpy as np
-from stimuli import StimulusSet, StimulusSetToPosition
+from stimuli import StimulusSet, StimulusSetToPosition, PRFStim
 
 
 class StimulationTrial(MRITrial):
@@ -234,9 +234,6 @@ class PositioningTrial(Trial):
         self.set_mode()
 
         pix2deg = self.session.pix2deg
-
-        left_stimulus = self.left_stimulus
-        right_stimulus = self.right_stimulus
         
 
     def draw(self):
@@ -363,3 +360,63 @@ class PositioningTrial(Trial):
                                          self.session,
                                          ori=self.parameters['right_ori'])
 
+class PRFTrial(Trial):
+    def __init__(self,
+                 session,
+                 parameters,
+                 *args,
+                 **kwargs):
+        
+
+        self.frame = 0
+        phase_durations = [10]
+        super(PRFTrial, self).__init__(session=session,
+                                       parameters=parameters,
+                                       phase_durations=phase_durations,
+                                       *args,
+                                       **kwargs)
+        self.setup_stimuli()
+       
+    def setup_stimuli(self):
+        """setup_stimuli creates all stimuli that do not change from trial to trial"""
+
+        self.left_frame = StimulusSet(self.screen,
+                                         [self.parameters['left_x'],
+                                          self.parameters['left_y']],
+                                         self.parameters['left_size'],
+                                         self.session,
+                                         ori=self.parameters['left_ori'],
+                                       checkerboard_type='none')
+
+        self.right_frame = StimulusSet(self.screen,
+                                         [self.parameters['right_x'],
+                                          self.parameters['right_y']],
+                                         self.parameters['right_size'],
+                                         self.session,
+                                         ori=self.parameters['right_ori'],
+                                         checkerboard_type='none')
+
+        self.left_prf = PRFStim(self.screen,
+                                [self.parameters['left_x'],
+                                self.parameters['left_y']],
+                                self.parameters['left_size'] / self.parameters['cross_circle_ratio'] / self.parameters['rim_ratio'],
+                                self.session,
+                                0.5*np.pi,
+                                self.parameters)
+
+    def event(self):
+        for ev in event.getKeys():
+            if ev in ['esc', 'escape', 'q']:
+                self.events.append(
+                    [-99, self.session.clock.getTime() - self.start_time])
+
+                self.stopped = True
+                self.session.stopped = True
+
+    def draw(self):
+        self.left_prf.draw(phase=float(self.frame) / (self.phase_durations[0] * self.session.framerate))
+        self.left_frame.draw()
+        self.right_frame.draw()
+        self.frame +=1
+
+        super(PRFTrial, self).draw()
