@@ -2,7 +2,7 @@ from exptools.core import Trial, MRITrial
 from psychopy import event, visual
 import itertools
 import numpy as np
-from stimuli import StimulusSet, StimulusSetToPosition, PRFStim
+from stimuli import StimulusSet, StimulusSetToPosition, PRFStim, BinocularPRFStim
 
 
 class StimulationTrial(MRITrial):
@@ -396,13 +396,14 @@ class PRFTrial(Trial):
                                          ori=self.parameters['right_ori'],
                                          checkerboard_type='none')
 
-        self.left_prf = PRFStim(self.screen,
-                                [self.parameters['left_x'],
-                                self.parameters['left_y']],
-                                self.parameters['left_size'] / self.parameters['cross_circle_ratio'] / self.parameters['rim_ratio'],
-                                self.session,
-                                0.5*np.pi,
-                                self.parameters)
+        self.left_prf = BinocularPRFStim(self.screen,
+                                         [[self.parameters['left_x'], self.parameters['left_y']],
+                                          [self.parameters['right_x'], self.parameters['right_y']]],
+                                          [self.parameters['left_size'] / self.parameters['cross_circle_ratio'],
+                                          self.parameters['right_size'] / self.parameters['cross_circle_ratio']],
+                                          self.session,
+                                          [0.25*np.pi + self.parameters['left_ori'], 0.25*np.pi + self.parameters['right_ori']],
+                                          self.parameters)
 
     def event(self):
         for ev in event.getKeys():
