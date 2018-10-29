@@ -125,13 +125,13 @@ class PRFSession(MRISession):
     
 def _get_default_parameters(session):
 
-    x_offset_left_eye = self.config.get('stimuli', 'x_offset_left_eye')
-    y_offset_left_eye = self.config.get('stimuli', 'y_offset_left_eye')
+    x_offset_left_eye = session.config.get('stimuli', 'x_offset_left_eye')
+    y_offset_left_eye = session.config.get('stimuli', 'y_offset_left_eye')
 
-    x_offset_right_eye = self.config.get('stimuli', 'x_offset_right_eye')
-    y_offset_right_eye = self.config.get('stimuli', 'y_offset_right_eye')
+    x_offset_right_eye = session.config.get('stimuli', 'x_offset_right_eye')
+    y_offset_right_eye = session.config.get('stimuli', 'y_offset_right_eye')
 
-    screen_size_deg = self.pix2deg(self.screen.size)
+    screen_size_deg = session.pix2deg(session.screen.size)
 
     left_x = -screen_size_deg[0] / 4 - x_offset_left_eye
     left_y = y_offset_left_eye
@@ -139,8 +139,8 @@ def _get_default_parameters(session):
     right_x = screen_size_deg[0] / 4 + x_offset_right_eye
     right_y = y_offset_right_eye
 
-    left_size = self.config.get('stimuli', 'left_size')
-    right_size = self.config.get('stimuli', 'right_size')
+    left_size = session.config.get('stimuli', 'left_size')
+    right_size = session.config.get('stimuli', 'right_size')
 
     settings = {'left_x':left_x,
                 'left_y':left_y,
