@@ -548,8 +548,6 @@ class PRFStim(object):
             np.array([self.bar_length, self.bar_width]) - \
             np.array([self.bar_length/2.0, self.bar_width/2.0])
 
-        self.element_positions += self.pos
-
         # self.element_sfs = np.ones((self.num_elements)) * self.session.element_spatial_frequency']
         self.element_sfs = np.random.rand(self.num_elements)*7+0.25
         self.element_sizes = np.ones((self.num_elements)) * self.parameters['element_size']
@@ -565,12 +563,13 @@ class PRFStim(object):
 
         to_be_redrawn = self.lifetimes < phase
         self.element_positions[to_be_redrawn] = np.random.rand(to_be_redrawn.sum(), 2) \
-                * np.array([self.bar_length, self.bar_width]) \
-                - np.array([self.bar_length/2.0, self.bar_width/2.0])     
+            * np.array([self.bar_length, self.bar_width]) \
+            - np.array([self.bar_length/2.0, self.bar_width/2.0])
+
         self.lifetimes[to_be_redrawn] += np.random.rand(to_be_redrawn.sum()) * self.parameters['element_lifetime']
 
         # define midpoint
-        self.midpoint = phase * self.full_width - 0.5 * self.full_width #+ self.session.x_offset']
+        self.midpoint = phase * self.full_width - 0.5 * self.full_width
 
         self.element_array.setSfs(self.element_sfs)
         self.element_array.setSizes(self.element_sizes)
@@ -582,10 +581,7 @@ class PRFStim(object):
         self.element_array.setXYs(self.element_positions.dot(self.rotation_matrix) + delta_pos + self.pos)
         self.element_array.setPhases(self.element_speeds * self.phase * self.period + self.element_phases)
 
-        #if self.frames % 30 == 0:
-            #print(self.getXYs())
+        self.element_array.draw()
 
 
         self.element_array.draw()
-        #self.element_array.setXYs(self.element_positions + delta_pos * 3)            
-        #self.element_array.draw()
