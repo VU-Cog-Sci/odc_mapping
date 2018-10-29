@@ -41,12 +41,12 @@ class StimulationTrial(MRITrial):
         self.right_stimulus.checkerboard.contrast = 1
 
 
-        self.directions = self._get_frame_values(self.session.framerate,
+        self.directions = _get_frame_values(self.session.framerate,
                                          self.trial_duration,
                                          self.parameters['min_direction_duration'],
                                          self.parameters['scale_direction_duration'])
 
-        self.colors = self._get_frame_values(self.session.framerate,
+        self.colors = _get_frame_values(self.session.framerate,
                                          self.trial_duration,
                                          self.parameters['min_direction_duration'],
                                          self.parameters['scale_direction_duration'],
@@ -82,13 +82,7 @@ class StimulationTrial(MRITrial):
             if self.frame % self.flicker_length_in_frames == 0:
                 self.left_stimulus.checkerboard.contrast *= -1
                 self.right_stimulus.checkerboard.contrast *= -1
-
             
-            self.left_stimulus.draw()
-            self.right_stimulus.draw()
-
-            self.frame += 1
-
             if self.monocularity_array[self.frame] == -1:
                 self.left_stimulus.checkerboard.opacity = 0
                 self.right_stimulus.checkerboard.opacity = 1
@@ -99,9 +93,12 @@ class StimulationTrial(MRITrial):
                 self.left_stimulus.checkerboard.opacity = 0
                 self.right_stimulus.checkerboard.opacity = 0
 
+            self.left_stimulus.draw()
+            self.right_stimulus.draw()
+
+            self.frame += 1
 
             new_ori = self.left_stimulus.checkerboard.ori + self.rotation_per_frame * self.directions[self.frame]
-
 
             self.left_stimulus.checkerboard.setOri(new_ori)
             self.right_stimulus.checkerboard.setOri(new_ori)
@@ -157,37 +154,6 @@ class StimulationTrial(MRITrial):
 
         super(StimulationTrial, self).event()
 
-    def _get_frame_values(self,
-                          framerate,
-                          trial_duration,
-                          min_value,
-                          exp_scale,
-                          values=[-1, 1],
-                          safety_margin=None):
-
-        if safety_margin is None:
-            safety_margin =  5
-
-        n_values = len(values)
-
-        total_duration = trial_duration + safety_margin
-        total_n_frames = total_duration * framerate
-
-        result = np.zeros(total_n_frames)
-
-        n_samples = np.ceil(total_duration * 2 / (exp_scale + min_value)).astype(int)
-        durations = np.random.exponential(exp_scale, n_samples) + min_value
-
-        frame_times = np.linspace(0, total_duration, total_n_frames, endpoint=False)
-
-        first_index = np.random.randint(n_values)
-
-        result[frame_times < durations[0]] = values[first_index]
-
-        for ix, c in enumerate(np.cumsum(durations)):
-            result[frame_times > c] = values[(first_index + ix) % n_values]
-
-        return result
 
     def _get_monocularity_array(self,
                                 intro_duration,
@@ -364,17 +330,31 @@ class PRFTrial(Trial):
     def __init__(self,
                  session,
                  parameters,
+                 fixation_colors=None,
                  *args,
                  **kwargs):
         
 
         self.frame = 0
         phase_durations = [10]
+        self.trial_duration = phase_durations[0]
+
         super(PRFTrial, self).__init__(session=session,
                                        parameters=parameters,
                                        phase_durations=phase_durations,
                                        *args,
                                        **kwargs)
+
+        self.fixation_colors = np.array([[1, -1, -1],
+                                         [-1, 1, -1]])
+
+        if not fixation_colors:
+            self.colors = _get_frame_values(self.session.framerate,
+                                            self.trial_duration,
+                                            self.parameters['min_direction_duration'],
+                                            self.parameters['scale_direction_duration'],
+                                            [0, 1]).astype(int)
+
         self.setup_stimuli()
        
     def setup_stimuli(self):
@@ -399,11 +379,17 @@ class PRFTrial(Trial):
         self.left_prf = BinocularPRFStim(self.screen,
                                          [[self.parameters['left_x'], self.parameters['left_y']],
                                           [self.parameters['right_x'], self.parameters['right_y']]],
-                                          [self.parameters['left_size'] / self.parameters['cross_circle_ratio'],
-                                          self.parameters['right_size'] / self.parameters['cross_circle_ratio']],
-                                          self.session,
-                                          [0.25*np.pi + self.parameters['left_ori'], 0.25*np.pi + self.parameters['right_ori']],
-                                          self.parameters)
+                                         [self.parameters['left_size'] / self.parameters['cross_circle_ratio'],
+                                         self.parameters['right_size'] / self.parameters['cross_circle_ratio']],
+                                         self.session,
+                                         [self.parameters['left_ori'], self.parameters['right_ori']],
+                                         self.parameters)
+
+        self.wait_stims = [visual.TextStim(self.screen,
+                                           'Waiting for trigger',
+                                           color='red',
+                                           pos=pos)
+                           for pos in [self.left_frame.pos, self.right_frame.pos]]
 
     def event(self):
         for ev in event.getKeys():
@@ -418,6 +404,40 @@ class PRFTrial(Trial):
         self.left_prf.draw(phase=float(self.frame) / (self.phase_durations[0] * self.session.framerate))
         self.left_frame.draw()
         self.right_frame.draw()
-        self.frame +=1
+        self.frame += 1
+
+        self.left_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
+        self.right_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
 
         super(PRFTrial, self).draw()
+
+def _get_frame_values(framerate,
+                      trial_duration,
+                      min_value,
+                      exp_scale,
+                      values=[-1, 1],
+                      safety_margin=None):
+
+    if safety_margin is None:
+        safety_margin =  5
+
+    n_values = len(values)
+
+    total_duration = trial_duration + safety_margin
+    total_n_frames = total_duration * framerate
+
+    result = np.zeros(total_n_frames)
+
+    n_samples = np.ceil(total_duration * 2 / (exp_scale + min_value)).astype(int)
+    durations = np.random.exponential(exp_scale, n_samples) + min_value
+
+    frame_times = np.linspace(0, total_duration, total_n_frames, endpoint=False)
+
+    first_index = np.random.randint(n_values)
+
+    result[frame_times < durations[0]] = values[first_index]
+
+    for ix, c in enumerate(np.cumsum(durations)):
+        result[frame_times > c] = values[(first_index + ix) % n_values]
+
+    return result

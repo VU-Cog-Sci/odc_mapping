@@ -75,6 +75,9 @@ class PRFSession(MRISession):
         if reset_positions or (parameters is None):
             parameters = self.get_default_parameters()
 
+        parameters['min_direction_duration'] = self.config.get('task', 'min_direction_duration')
+        parameters['scale_direction_duration'] = self.config.get('task', 'scale_direction_duration')
+        parameters['stim_bool'] = True
 
         # Put PRF parameters in parameter dict
         for par in ['num_elements',

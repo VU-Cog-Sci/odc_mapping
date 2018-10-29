@@ -458,18 +458,19 @@ class PRFStim(object):
                  size,
                  session,
                  orientation,
-                 parameters):
-        # parameters
-
+                 parameters,
+                 aperture='circle'):
 
         self.session = session
         self.screen = screen
 
+        self.aperture = aperture
+
         self.size_pix = self.session.deg2pix(size)
         self.pos = [self.session.deg2pix(pos[0]), self.session.deg2pix(pos[1])]
 
-        self.orientation = orientation    # convert to radians immediately, and use to calculate rotation matrix
-        self.rotation_matrix = np.matrix([[np.cos(self.orientation), -np.sin(self.orientation)],
+        self.orientation = radians(orientation)    # convert to radians immediately, and use to calculate rotation matrix
+        self.rotation_matrix = np.array([[np.cos(self.orientation), -np.sin(self.orientation)],
                                           [np.sin(self.orientation), np.cos(self.orientation)]])
         # self.refresh_frequency = session.redraws_per_TR / session.standard_parameters['TR
 
@@ -575,13 +576,18 @@ class PRFStim(object):
         self.element_array.setSizes(self.element_sizes)
         self.element_array.setColors(self.colors)
         self.element_array.setOris(self.element_orientations)
-
         delta_pos = np.array([0, -self.midpoint]).dot(self.rotation_matrix)
 
-        self.element_array.setXYs(self.element_positions.dot(self.rotation_matrix) + delta_pos + self.pos)
+        xys = self.element_positions.dot(self.rotation_matrix) + delta_pos
+        self.element_array.setXYs(xys + self.pos)
+
+        if self.aperture == 'circle':
+            self.element_array.setOpacities(np.sqrt((xys**2).sum(1)) < self.full_width / 2)
+
         self.element_array.setPhases(self.element_speeds * self.phase * self.period + self.element_phases)
 
-        self.element_array.draw()
+        if self.parameters['stim_bool']:
+            self.element_array.draw()
 
 class BinocularPRFStim(PRFStim):
     def __init__(self,
@@ -601,12 +607,15 @@ class BinocularPRFStim(PRFStim):
 
         self.pos2 = [self.session.deg2pix(pos[1][0]), self.session.deg2pix(pos[1][1])]
         self.size_pix2 = self.session.deg2pix(size[1])
-        self.orientation2 = orientation[1]
+        self.orientation2 = radians(orientation[1])
 
-        self.rotation_matrix2 = np.matrix([[np.cos(self.orientation2), -np.sin(self.orientation2)],
-                                           [np.sin(self.orientation2), np.cos(self.orientation2)]])
+        self.rotation_matrix2 = np.array([[np.cos(self.orientation2), -np.sin(self.orientation2)],
+                                         [np.sin(self.orientation2), np.cos(self.orientation2)]])
+
 
         self.scaling = self.size_pix2 / self.size_pix
+
+        self.rotation_matrix2 = self.rotation_matrix2 * self.scaling
 
 
     def draw(self, phase=0):
@@ -622,4 +631,5 @@ class BinocularPRFStim(PRFStim):
         self.element_array.setXYs(self.element_positions.dot(self.rotation_matrix2) + delta_pos + self.pos2)
         self.element_array.setPhases(self.element_speeds * self.phase * self.period + self.element_phases)
 
-        self.element_array.draw()
+        if self.parameters['stim_bool']:
+            self.element_array.draw()
