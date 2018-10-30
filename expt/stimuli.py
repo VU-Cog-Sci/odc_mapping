@@ -508,7 +508,8 @@ class PRFStim(object):
                                               sfs=self.element_sfs,
                                               xys=self.element_positions,
                                               colors=self.colors,
-                                              colorSpace='rgb')
+                                              colorSpace='rgb',
+                                              units='pix')
 
 
     def convert_sample(self,in_sample):
@@ -546,7 +547,7 @@ class PRFStim(object):
             np.array([self.bar_length/2.0, self.bar_width/2.0])
 
         # self.element_sfs = np.ones((self.num_elements)) * self.session.element_spatial_frequency']
-        self.element_sfs = np.random.rand(self.num_elements) * self.session.deg2pix(self.parameters['element_spatial_frequency'])
+        self.element_sfs = np.random.rand(self.num_elements) * (1./self.session.deg2pix(1./self.parameters['element_spatial_frequency']))
         self.element_sizes = np.ones(self.num_elements) * self.session.deg2pix(self.parameters['element_size'])
         self.element_phases = np.zeros(self.num_elements)
         self.element_orientations = np.random.rand(self.num_elements) * 720.0 - 360.0
