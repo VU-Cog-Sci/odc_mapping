@@ -328,16 +328,16 @@ class PositioningTrial(Trial):
 
 class PRFTrial(Trial):
     def __init__(self,
-                 session,
                  parameters,
+                 phase_durations,
+                 session,
                  fixation_colors=None,
                  *args,
                  **kwargs):
         
 
         self.frame = 0
-        phase_durations = [10]
-        self.trial_duration = phase_durations[0]
+        self.trial_duration = phase_durations[1]
 
         super(PRFTrial, self).__init__(session=session,
                                        parameters=parameters,
@@ -382,7 +382,8 @@ class PRFTrial(Trial):
                                          [self.parameters['left_size'] / self.parameters['cross_circle_ratio'],
                                          self.parameters['right_size'] / self.parameters['cross_circle_ratio']],
                                          self.session,
-                                         [self.parameters['left_ori'], self.parameters['right_ori']],
+                                         [self.parameters['left_ori'] + self.parameters['bar_direction'],
+                                          self.parameters['right_ori'] + self.parameters['bar_direction']],
                                          self.parameters)
 
         self.wait_stims = [visual.TextStim(self.screen,
@@ -400,14 +401,25 @@ class PRFTrial(Trial):
                 self.stopped = True
                 self.session.stopped = True
 
-    def draw(self):
-        self.left_prf.draw(phase=float(self.frame) / (self.phase_durations[0] * self.session.framerate))
-        self.left_frame.draw()
-        self.right_frame.draw()
-        self.frame += 1
+            if (self.phase == 0) and (ev == self.session.mri_trigger_key):
+                self.phase_forward()
 
-        self.left_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
-        self.right_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
+    def draw(self):
+
+        if self.phase == 0:
+            self.left_frame.draw()
+            self.right_frame.draw()
+            self.wait_stims[0].draw()
+            self.wait_stims[1].draw()
+
+        else:
+            self.left_prf.draw(phase=float(self.frame) / (self.trial_duration * self.session.framerate))
+            self.left_frame.draw()
+            self.right_frame.draw()
+            self.frame += 1
+
+            self.left_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
+            self.right_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
 
         super(PRFTrial, self).draw()
 

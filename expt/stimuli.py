@@ -489,7 +489,7 @@ class PRFStim(object):
 
         self.num_elements = self.parameters['num_elements']
         
-        self.period = self.parameters['bar_pass_duration']
+        self.bar_pass_duration = self.parameters['bar_pass_duration']
 
         self.full_width = self.size_pix + self.bar_width + self.parameters['element_size']
         self.midpoint = np.array(self.pos)
@@ -579,15 +579,16 @@ class PRFStim(object):
         delta_pos = np.array([0, -self.midpoint]).dot(self.rotation_matrix)
 
         xys = self.element_positions.dot(self.rotation_matrix) + delta_pos
+        print(xys)
         self.element_array.setXYs(xys + self.pos)
 
-        if self.aperture == 'circle':
-            self.element_array.setOpacities(np.sqrt((xys**2).sum(1)) < self.full_width / 2)
+        #if self.aperture == 'circle':
+            #self.element_array.setOpacities(np.sqrt((xys**2).sum(1)) < self.full_width / 2)
 
-        self.element_array.setPhases(self.element_speeds * self.phase * self.period + self.element_phases)
+        self.element_array.setPhases(self.element_speeds * self.phase * self.bar_pass_duration + self.element_phases)
 
-        if self.parameters['stim_bool']:
-            self.element_array.draw()
+        #if self.parameters['stim_bool']:
+        self.element_array.draw()
 
 class BinocularPRFStim(PRFStim):
     def __init__(self,
@@ -627,9 +628,10 @@ class BinocularPRFStim(PRFStim):
         self.element_array.setOris(self.element_orientations)
 
         delta_pos = np.array([0, -self.midpoint]).dot(self.rotation_matrix2)
+        print(delta_pos, self.pos2)
 
         self.element_array.setXYs(self.element_positions.dot(self.rotation_matrix2) + delta_pos + self.pos2)
-        self.element_array.setPhases(self.element_speeds * self.phase * self.period + self.element_phases)
+        self.element_array.setPhases(self.element_speeds * self.phase * self.bar_pass_duration + self.element_phases)
 
-        if self.parameters['stim_bool']:
-            self.element_array.draw()
+        #if self.parameters['stim_bool']:
+        self.element_array.draw()
