@@ -122,41 +122,27 @@ class PRFSession(MRISession):
         stim_direction_indices = self.config.get('prf', 'stim_direction_indices')
         stim_durations = self.config.get('prf', 'stim_durations')
 
-#class PRFTrial(Trial):
-    #def __init__(self,
-                 #parameters,
-                 #phase_durations,
-                 #session,
-                 #fixation_colors=None,
-                 #*args,
-                 #**kwargs):
+        self.trials = []
+        for i, (stim_present, direction, duration) in enumerate(zip(stim_booleans,
+                                                                    stim_direction_indices,
+                                                                    stim_durations)):
+           parameters['stim_bool'] = bool(stim_present)
+           parameters['bar_pass_duration'] = duration
+           phase_durations = [-1e-9, duration]
 
-        self.prf_trial = PRFTrial(session=self, 
-                                  phase_durations=[-1, 10],
-                                  parameters=parameters)
-        self.prf_trial.run()
-        
-        #self.trials = []
-        #for i, (stim_present, direction, duration) in enumerate(zip(stim_booleans,
-                                                                    #stim_direction_indices,
-                                                                    #stim_durations)):
-           #parameters['stim_bool'] = bool(stim_present)
-           #parameters['bar_pass_duration'] = duration
-           #phase_durations = [-1, duration]
+           if i == 0:
+               phase_durations[0] = 1000
 
-           #if i == 0:
-               #phase_durations[0] = 1000
+           direction = direction / 8. * 360.
+           parameters['bar_direction'] = direction
 
-           #direction = direction / 8 * 360 
-           #parameters['bar_direction'] = direction
+           self.trials.append(PRFTrial(parameters=parameters,
+                                phase_durations=phase_durations,
+                                session=self))
 
-           #self.trials.append(PRFTrial(parameters=copy(parameters),
-                                #phase_durations=phase_durations,
-                                #session=self))
-
-        #for ix, trial in enumerate(self.trials):
-            #if not self.stopped:
-                #trial.run(ix)
+        for ix, trial in enumerate(self.trials):
+            if not self.stopped:
+                trial.run(ix)
 
         self.stop()
         self.close()
