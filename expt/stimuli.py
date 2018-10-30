@@ -488,8 +488,7 @@ class PRFStim(object):
         
         self.bar_pass_duration = self.parameters['bar_pass_duration']
 
-        self.full_width = self.size_pix + self.bar_width + self.parameters['element_size']
-        self.midpoint = np.array(self.pos)
+        self.full_width = self.size_pix + self.bar_width# + self.session.deg2pix(self.parameters['element_size'])
 
         # this is for determining ecc, which we make dependent on largest screen dimension
 
