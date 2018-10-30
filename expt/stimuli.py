@@ -472,7 +472,6 @@ class PRFStim(object):
         self.orientation = radians(orientation)    # convert to radians immediately, and use to calculate rotation matrix
         self.rotation_matrix = np.array([[np.cos(self.orientation), -np.sin(self.orientation)],
                                           [np.sin(self.orientation), np.cos(self.orientation)]])
-        # self.refresh_frequency = session.redraws_per_TR / session.standard_parameters['TR
 
         self.parameters = parameters
 
@@ -482,8 +481,6 @@ class PRFStim(object):
         self.fast_speed = self.parameters['fast_speed']
         self.slow_speed = self.parameters['slow_speed']
         
-        # print(self.orientation)
-
         self.bar_width = self.parameters['bar_width_ratio'] * self.size_pix
         self.bar_length = self.size_pix
 
@@ -579,16 +576,15 @@ class PRFStim(object):
         delta_pos = np.array([0, -self.midpoint]).dot(self.rotation_matrix)
 
         xys = self.element_positions.dot(self.rotation_matrix) + delta_pos
-        print(xys)
         self.element_array.setXYs(xys + self.pos)
 
-        #if self.aperture == 'circle':
-            #self.element_array.setOpacities(np.sqrt((xys**2).sum(1)) < self.full_width / 2)
+        if self.aperture == 'circle':
+            self.element_array.setOpacities(np.sqrt((xys**2).sum(1)) < self.full_width / 2)
 
         self.element_array.setPhases(self.element_speeds * self.phase * self.bar_pass_duration + self.element_phases)
 
-        #if self.parameters['stim_bool']:
-        self.element_array.draw()
+        if self.parameters['stim_bool']:
+            self.element_array.draw()
 
 class BinocularPRFStim(PRFStim):
     def __init__(self,
@@ -628,10 +624,9 @@ class BinocularPRFStim(PRFStim):
         self.element_array.setOris(self.element_orientations)
 
         delta_pos = np.array([0, -self.midpoint]).dot(self.rotation_matrix2)
-        print(delta_pos, self.pos2)
 
         self.element_array.setXYs(self.element_positions.dot(self.rotation_matrix2) + delta_pos + self.pos2)
         self.element_array.setPhases(self.element_speeds * self.phase * self.bar_pass_duration + self.element_phases)
 
-        #if self.parameters['stim_bool']:
-        self.element_array.draw()
+        if self.parameters['stim_bool']:
+            self.element_array.draw()
