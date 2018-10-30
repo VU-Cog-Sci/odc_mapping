@@ -129,7 +129,8 @@ class PRFSession(MRISession):
                                         self.total_duration,
                                         parameters['min_direction_duration'],
                                         parameters['scale_direction_duration'],
-                                        [0, 1],).astype(int)
+                                        [0, 1],
+                                        10).astype(int)
 
         cum_durations = np.concatenate(([0], np.cumsum(stim_durations)))
         cum_durations_frames = cum_durations * self.framerate
@@ -151,7 +152,7 @@ class PRFSession(MRISession):
            self.trials.append(PRFTrial(parameters=parameters,
                                        phase_durations=phase_durations,
                                        session=self,
-                                       fixation_colors=self.colors[cum_durations_frames[i]:cum_durations_frames[i+1]+30]))
+                                       fixation_colors=self.colors[cum_durations_frames[i]:cum_durations_frames[i+1]+5*self.framerate]))
 
         for ix, trial in enumerate(self.trials):
             if not self.stopped:
