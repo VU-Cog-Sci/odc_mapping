@@ -5,7 +5,7 @@ import numpy as np
 import glob
 import pandas as pd
 from copy import copy
-
+from trial import _get_frame_values
 
 class ODCSession(MRISession):
 
@@ -122,6 +122,18 @@ class PRFSession(MRISession):
         stim_direction_indices = self.config.get('prf', 'stim_direction_indices')
         stim_durations = self.config.get('prf', 'stim_durations')
 
+
+        self.total_duration = np.sum(stim_durations)
+
+        self.colors = _get_frame_values(self.framerate,
+                                        self.total_duration,
+                                        parameters['min_direction_duration'],
+                                        parameters['scale_direction_duration'],
+                                        [0, 1],).astype(int)
+
+        cum_durations = np.concatenate(([0], np.cumsum(stim_durations)))
+        cum_durations_frames = cum_durations * self.framerate
+
         self.trials = []
         for i, (stim_present, direction, duration) in enumerate(zip(stim_booleans,
                                                                     stim_direction_indices,
@@ -137,8 +149,9 @@ class PRFSession(MRISession):
            parameters['bar_direction'] = direction
 
            self.trials.append(PRFTrial(parameters=parameters,
-                                phase_durations=phase_durations,
-                                session=self))
+                                       phase_durations=phase_durations,
+                                       session=self,
+                                       fixation_colors=self.colors[cum_durations_frames[i]:cum_durations_frames[i+1]+30]))
 
         for ix, trial in enumerate(self.trials):
             if not self.stopped:

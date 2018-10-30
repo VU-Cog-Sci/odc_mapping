@@ -345,15 +345,18 @@ class PRFTrial(Trial):
                                        *args,
                                        **kwargs)
 
-        self.fixation_colors = np.array([[1, -1, -1],
-                                         [-1, 1, -1]])
 
-        if not fixation_colors:
+        if fixation_colors is None:
             self.colors = _get_frame_values(self.session.framerate,
                                             self.trial_duration,
                                             self.parameters['min_direction_duration'],
                                             self.parameters['scale_direction_duration'],
                                             [0, 1]).astype(int)
+        else:
+            self.colors = fixation_colors
+
+        self.fixation_colors = np.array([[1, -1, -1],
+                                         [-1, 1, -1]])
 
         self.setup_stimuli()
        
@@ -417,13 +420,14 @@ class PRFTrial(Trial):
             self.wait_stims[1].draw()
 
         else:
+            self.left_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
+            self.right_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
+
             self.left_prf.draw(phase=float(self.frame) / (self.trial_duration * self.session.framerate))
             self.left_frame.draw()
             self.right_frame.draw()
             self.frame += 1
 
-            self.left_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
-            self.right_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
 
         super(PRFTrial, self).draw()
 
