@@ -394,6 +394,9 @@ class PRFTrial(Trial):
 
     def event(self):
         for ev in event.getKeys():
+
+            super(PRFTrial, self).key_event(ev)
+
             if ev in ['esc', 'escape', 'q']:
                 self.events.append(
                     [-99, self.session.clock.getTime() - self.start_time])
@@ -403,6 +406,7 @@ class PRFTrial(Trial):
 
             if (self.phase == 0) and (ev == self.session.mri_trigger_key):
                 self.phase_forward()
+            
 
     def draw(self):
 
