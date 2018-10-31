@@ -12,10 +12,18 @@ LENGTH_BOLD = 132
 
 def main(sourcedata, 
          subject,
-         session):
-    print('Fixing subject {} in {}'.format(subject, sourcedata))
+         session,
+         length_epi,
+         length_bold):
+    print('Fixing subject {} in {} ({}. {})'.format(subject,
+                                                    sourcedata,
+                                                    length_epi,
+                                                    length_bold))
 
     layout = BIDSLayout(sourcedata)
+
+    LENGTH_EPI = length_epi
+    LENGTH_BOLD = length_bold
 
     epis = layout.get(subject=subject,
                       session=session,
@@ -57,9 +65,19 @@ if __name__ == '__main__':
     parser.add_argument("session", 
                         default='*',
                         help="Session to process")
+    parser.add_argument("length_epi", 
+                        default=10,
+                        type=int,
+                        help="Length of EPIs to correct")
+    parser.add_argument("length_bold", 
+                        default=132,
+                        type=int,
+                        help="Length of BOLDs to correct")
     args = parser.parse_args()
 
     main('/sourcedata', 
          subject=args.subject,
-         session=args.session)
+         session=args.session,
+         length_epi=args.length_epi,
+         length_bold=args.length_bold)
 
