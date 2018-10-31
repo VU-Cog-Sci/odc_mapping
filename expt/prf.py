@@ -1,8 +1,8 @@
-from session import ODCSession
 import argparse
+from session import PRFSession
 
 def main(subject, run, reset):
-    session = ODCSession(subject_initials=subject,
+    session = PRFSession(subject_initials=subject,
                          index_number=run,
                          reset_positions=reset,
                          simulate_mri_trigger=True)

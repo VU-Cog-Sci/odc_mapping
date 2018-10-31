@@ -1,16 +1,19 @@
 global:
   screen:
-    size: [2560, 1440]
+    size: [1920, 1080]
     full_screen: False
     background_color: [-1, -1, -1]
     gamma_scale: [2.475,2.25,2.15]
     physical_screen_size: [58, 36]
-    physical_screen_distance: 25
+    physical_screen_distance: 50
     max_lums: [24.52, 78.8, 10.19]
     wait_blanking: True
     mouse_visible: False
     screen_nr: 2
     framerate: 60
+    foreground_color: [1,1,1]
+    linearize_gamma: True
+    min_lums: [0, 0, 0]
 
   stimuli:
     x_offset_left_eye: 0
@@ -58,3 +61,34 @@ global:
 
   mri:
     mri_trigger_key: 't'
+
+  prf:
+    num_elements: 2000
+    fast_speed: 12.0       
+    slow_speed: 3.0        
+    element_size: .75        
+    element_spatial_frequency: 30
+    color_ratio: 0.5
+    element_lifetime: 0.05
+    bar_width_ratio: 0.125
+
+
+    stim_present_booleans: [1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0]  
+    stim_direction_indices: [0, 0, 7, 0, 4, 3, 0, 2, 1, 0, 6, 5, 0]
+    stim_durations: [24, 30, 30, 12, 30, 30, 12, 30, 30, 12, 30, 30, 24]
+
+macbook:
+    screen:
+        size: [2560, 1440]
+        physical_screen_size: [58, 36]
+        physical_screen_distance: 50
+        max_lums: [24.52, 78.8, 10.19]
+        wait_blanking: True
+
+mri:
+    screen:
+        size: [1920, 1080]
+        physical_screen_size: [58, 36]
+        physical_screen_distance: 15
+        max_lums: [24.52, 78.8, 10.19]
+        wait_blanking: True

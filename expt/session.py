@@ -1,18 +1,21 @@
 from exptools.core.session import MRISession
 from stimuli import StimulusSet, StimulusSetToPosition
-from trial import PositioningTrial, StimulationTrial
+from trial import PositioningTrial, StimulationTrial, PRFTrial
 import numpy as np
 import glob
 import pandas as pd
+from copy import copy
+from trial import _get_frame_values
 
 class ODCSession(MRISession):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, reset_positions=False, *args, **kwargs):
         super(ODCSession, self).__init__(*args, **kwargs)
 
-        parameters = self.find_parameters_subject()
+        if not reset_positions:
+            parameters = self.find_parameters_subject()
 
-        if parameters is None:
+        if reset_positions or (parameters is None):
             parameters = self.get_default_parameters()
 
         self.framerate = self.config.get('screen', 'framerate')
@@ -20,7 +23,12 @@ class ODCSession(MRISession):
         self.positioning_trial = PositioningTrial(session=self,
                                                   parameters=parameters)
 
+    
+    def get_default_parameters(self):
+        return _get_default_parameters(self)
 
+    def find_parameters_subject(self):
+        return _find_parameters_subject(self)
         
     def run(self):
         """run the session"""
@@ -38,6 +46,7 @@ class ODCSession(MRISession):
         parameters['monocular_durations'] = self.config.get('task', 'duration_per_eye')
         parameters['checkerboard_cycles_per_degree'] = self.config.get('stimuli', 'checkerboard_cycles_per_degree')
         parameters['checkerboard_type'] = self.config.get('stimuli', 'checkerboard_type')
+        parameters['cross_circle_ratio'] = self.config.get('checker_cross', 'ratio_to_circle')
 
         self.flicker_trial = StimulationTrial(session=self,
                                               parameters=parameters)
@@ -54,46 +63,144 @@ class ODCSession(MRISession):
         self.close()
     
 
+
+
+class PRFSession(MRISession):
+
+    def __init__(self, reset_positions=False, *args, **kwargs):
+        super(PRFSession, self).__init__(*args, **kwargs)
+
+        if not reset_positions:
+            parameters = self.find_parameters_subject()
+
+        if reset_positions or (parameters is None):
+            parameters = self.get_default_parameters()
+
+        parameters['min_direction_duration'] = self.config.get('task', 'min_direction_duration')
+        parameters['scale_direction_duration'] = self.config.get('task', 'scale_direction_duration')
+        parameters['stim_bool'] = True
+
+        # Put PRF parameters in parameter dict
+        for par in ['num_elements',
+                    'fast_speed',
+                    'slow_speed',
+                    'element_size',
+                    'element_spatial_frequency',
+                    'color_ratio',
+                    'element_lifetime',
+                    'bar_width_ratio',]:
+            parameters[par] = self.config.get('prf', par)
+
+        parameters['RG_color'] = 1/parameters['color_ratio']
+        parameters['BY_color'] = 1
+
+        parameters['cross_circle_ratio'] = self.config.get('checker_cross', 'ratio_to_circle')
+        parameters['rim_ratio'] = self.config.get('rim', 'rim_ratio')
+
+        self.framerate = self.config.get('screen', 'framerate')
+
+        #for trial_color
+        self.positioning_trial = PositioningTrial(session=self,
+                                                  parameters=parameters)
+
+
+    def get_default_parameters(self):
+        return _get_default_parameters(self)
+
     def find_parameters_subject(self):
+        return _find_parameters_subject(self)
+    
+    def run(self):
+        """run the session"""
 
-        fns = sorted(glob.glob('data/{}*.tsv'.format(self.subject_initials)))
+        self.positioning_trial.run()
 
-        if len(fns) == 0:
-            return None
+        parameters = self.positioning_trial.parameters
+        parameters['framerate'] = self.framerate
 
-        fn = fns[-1]
+        stim_booleans = self.config.get('prf', 'stim_present_booleans')
+        stim_direction_indices = self.config.get('prf', 'stim_direction_indices')
+        stim_durations = self.config.get('prf', 'stim_durations')
 
-        data = pd.read_table(fn, index_col=0)
 
-        return data.iloc[0].to_dict()
+        self.total_duration = np.sum(stim_durations)
+
+        self.colors = _get_frame_values(self.framerate,
+                                        self.total_duration,
+                                        parameters['min_direction_duration'],
+                                        parameters['scale_direction_duration'],
+                                        [0, 1],
+                                        10).astype(int)
+
+        cum_durations = np.concatenate(([0], np.cumsum(stim_durations)))
+        cum_durations_frames = cum_durations * self.framerate
+
+        self.trials = []
+        for i, (stim_present, direction, duration) in enumerate(zip(stim_booleans,
+                                                                    stim_direction_indices,
+                                                                    stim_durations)):
+           parameters['stim_bool'] = bool(stim_present)
+           parameters['bar_pass_duration'] = duration
+           phase_durations = [-1e-9, duration]
+
+           if i == 0:
+               phase_durations[0] = 1000
+
+           direction = direction / 8. * 360.
+           parameters['bar_direction'] = direction
+
+           self.trials.append(PRFTrial(parameters=parameters,
+                                       phase_durations=phase_durations,
+                                       session=self,
+                                       fixation_colors=self.colors[cum_durations_frames[i]:cum_durations_frames[i+1]+5*self.framerate]))
+
+        for ix, trial in enumerate(self.trials):
+            if not self.stopped:
+                trial.run(ix)
+
+        self.stop()
+        self.close()
 
     
-    def get_default_parameters(self):
+def _get_default_parameters(session):
 
-        x_offset_left_eye = self.config.get('stimuli', 'x_offset_left_eye')
-        y_offset_left_eye = self.config.get('stimuli', 'y_offset_left_eye')
+    x_offset_left_eye = session.config.get('stimuli', 'x_offset_left_eye')
+    y_offset_left_eye = session.config.get('stimuli', 'y_offset_left_eye')
 
-        x_offset_right_eye = self.config.get('stimuli', 'x_offset_right_eye')
-        y_offset_right_eye = self.config.get('stimuli', 'y_offset_right_eye')
+    x_offset_right_eye = session.config.get('stimuli', 'x_offset_right_eye')
+    y_offset_right_eye = session.config.get('stimuli', 'y_offset_right_eye')
 
-        screen_size_deg = self.pix2deg(self.screen.size)
+    screen_size_deg = session.pix2deg(session.screen.size)
 
-        left_x = -screen_size_deg[0] / 4 - x_offset_left_eye
-        left_y = y_offset_left_eye
+    left_x = -screen_size_deg[0] / 4 - x_offset_left_eye
+    left_y = y_offset_left_eye
 
-        right_x = screen_size_deg[0] / 4 + x_offset_right_eye
-        right_y = y_offset_right_eye
+    right_x = screen_size_deg[0] / 4 + x_offset_right_eye
+    right_y = y_offset_right_eye
 
-        left_size = self.config.get('stimuli', 'left_size')
-        right_size = self.config.get('stimuli', 'right_size')
+    left_size = session.config.get('stimuli', 'left_size')
+    right_size = session.config.get('stimuli', 'right_size')
 
-        settings = {'left_x':left_x,
-                    'left_y':left_y,
-                    'left_size':left_size,
-                    'left_ori':0,
-                    'right_x':right_x,
-                    'right_y':right_y,
-                    'right_size':right_size,
-                    'right_ori':0}
+    settings = {'left_x':left_x,
+                'left_y':left_y,
+                'left_size':left_size,
+                'left_ori':0,
+                'right_x':right_x,
+                'right_y':right_y,
+                'right_size':right_size,
+                'right_ori':0}
 
-        return settings
+    return settings
+
+def _find_parameters_subject(session):
+
+    fns = sorted(glob.glob('data/{}*.tsv'.format(session.subject_initials)))
+
+    if len(fns) == 0:
+        return None
+
+    fn = fns[-1]
+
+    data = pd.read_table(fn, index_col=0)
+
+    return data.iloc[0].to_dict()
