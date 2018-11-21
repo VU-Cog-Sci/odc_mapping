@@ -2,3 +2,6 @@
 	path = spynoza
 	url = git@github.com:spinoza-centre/spynoza.git
 	branch = 7t_hires
+[submodule "fmriprep"]
+	path = fmriprep
+	url = git@github.com:Gilles86/fmriprep.git
