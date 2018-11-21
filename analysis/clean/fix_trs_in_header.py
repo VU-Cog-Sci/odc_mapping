@@ -3,12 +3,14 @@ import os
 import sys
 from bids.grabbids import BIDSLayout
 import shutil
+import argparse
 
-def main(bids_dir, subject):
+def main(bids_dir, subject, session):
 
     print(subject, bids_dir)
     layout = BIDSLayout(bids_dir, absolute_paths=True)
     bolds = layout.get(subject=subject, 
+                       session=session,
                        extensions='nii', type='bold')
 
     for bold in bolds:
@@ -27,15 +29,15 @@ def main(bids_dir, subject):
             shutil.move(bold.filename+'.new.nii', bold.filename)
 
 if __name__ == '__main__':
-    if 'DATA_DIR' in os.environ:
-        data_dir = os.environ['DATA_DIR']
-    else:
-        data_dir = '/data'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("subject", 
+                        help="subject to process")
+    parser.add_argument("session", 
+                        default='*',
+                        help="Session to process")
+    args = parser.parse_args()
 
-    if len(sys.argv) > 1:
-        subject = sys.argv[1]
-    else:
-        subject = None
-
-    main(os.path.join(data_dir, 'sourcedata'), subject)
+    main('/sourcedata', 
+         subject=args.subject,
+         session=args.session)
 
