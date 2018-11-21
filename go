@@ -1,1 +1,1 @@
-docker-compose run odcmapping
+docker-compose run --rm odcmapping
