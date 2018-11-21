@@ -25,28 +25,35 @@ WORKDIR /src
 RUN echo "source activate neuro\n. ${FSLDIR}/etc/fslconf/fsl.sh" >> ~/.zshrc
 RUN bash -c "source activate neuro && pip install lxml --upgrade"
 
+
 RUN apt-get update -qq && apt-get install -y python python-pip python-dev build-essential software-properties-common openjdk-8-jdk
 RUN ln -svT "/usr/lib/jvm/java-8-openjdk-$(dpkg --print-architecture)" /docker-java-home
 ENV JAVA_HOME /docker-java-home
 ENV JCC_JDK /docker-java-home
 RUN apt-get install -y jcc
 
-RUN conda create --name nighres python=2.7 numpy scipy ipython jcc
-RUN git clone https://github.com/nighres/nighres /nighres && \
-    cd /nighres && /bin/bash -c "cd /nighres && source activate nighres && ./build.sh && python setup.py install && pip install pybids sklearn nilearn"
-    
-RUN cd /tmp \
-    && wget -q https://github.com/spinoza-centre/spynoza/archive/7t_hires.zip \
-    && unzip -q 7t_hires.zip && mv spynoza-7t_hires /spynoza
-RUN bash -c "source activate neuro && pip uninstall -y spynoza && cd /spynoza && python setup.py develop"
+RUN echo "YES"
 
+COPY nighres /nighres
+
+RUN cd /nighres \
+    && bash -c "source activate neuro && conda install jcc" \
+    && bash -c "source activate neuro && ./build.sh"
+    #&& bash -c "source activate neuro && python setup.py install"
+    
 COPY ./analysis /src
 COPY nipype.cfg /root/.nipype/nipype.cfg
 
-COPY fmriprep /fmriprep
+#COPY ./fmriprep /fmriprep
 
-RUN git clone https://github.com/Gilles86/pymp2rage /tmp/pymp2rage \
-    && bash -c "source activate neuro && pip uninstall -y fmriprep && cd /fmriprep && python setup.py develop" \
-    && bash -c "source activate neuro && cd /tmp/pymp2rage && python setup.py install"
+#RUN bash -c "source activate neuro && pip uninstall -y fmriprep && cd /fmriprep && python setup.py develop"
 
+#RUN bash -c "source activate neuro && pip install fmriprep"
+COPY pymp2rage /pymp2rage
+RUN bash -c "source activate neuro && pip uninstall -y pymp2rage && cd /pymp2rage && python setup.py develop"
 
+COPY pybids /pybids
+RUN bash -c "source activate neuro && pip uninstall -y pybids && cd /pybids && python setup.py develop"
+
+COPY spynoza /spynoza
+RUN bash -c "source activate neuro && pip uninstall -y spynoza && cd /spynoza && python setup.py develop"

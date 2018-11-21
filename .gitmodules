@@ -8,3 +8,9 @@
 [submodule "nighres"]
 	path = nighres
 	url = git@github.com:Gilles86/nighres.git
+[submodule "pybids"]
+	path = pybids
+	url = git@github.com:Gilles86/pybids.git
+[submodule "pymp2rage"]
+	path = pymp2rage
+	url = git@github.com:Gilles86/pymp2rage.git
