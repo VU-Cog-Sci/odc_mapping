@@ -1,14 +1,68 @@
 from spynoza.hires.workflows import init_hires_unwarping_wf
-from bids.grabbids import BIDSLayout
+#from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 import os
 import argparse
 import warnings
+import re
 
+def get_dura_mask(derivatives,
+                  subject,
+                  space='average',
+                  session=None):
+
+    dura_folder = os.path.join(derivatives, 'masked_mp2rages')
+    
+    session_str = '_ses-{}'.format(session) if session else ''
+    session_folder = 'ses-{}/'.format(session) if session else ''
+    space_str = '_space-{}'.format(space) if session else ''
+
+    str = 'sub-{subject}/{session_folder}anat/sub-{subject}{session_str}{space_str}_desc-dura_mask.nii.gz'.format(**locals())
+
+    return os.path.join(dura_folder, str)
+
+def get_averaged_image(derivatives,
+                       subject,
+                       space='average',
+                       suffix='T1w',
+                       session=None):
+
+    folder = os.path.join(derivatives, 'averaged_mp2rages')
+    
+    session_str = '_ses-{}'.format(session) if session else ''
+    session_folder = 'ses-{}/'.format(session) if session else ''
+    space_str = '_space-{}'.format(space) if session else ''
+
+    str = 'sub-{subject}/{session_folder}anat/sub-{subject}{session_str}{space_str}_{suffix}.nii.gz'.format(**locals())
+
+    return os.path.join(folder, str)
+
+def get_derivative(derivatives_folder,
+                   type,
+                   modality,
+                   subject,
+                   suffix,
+                   session=None,
+                   space=None,
+                   acquisition=None,
+                   extension='nii.gz'):
+
+    folder = os.path.join(derivatives_folder, type)
+    
+    session_str = '_ses-{}'.format(session) if session else ''
+    session_folder = 'ses-{}/'.format(session) if session else ''
+    space_str = '_space-{}'.format(space) if space else ''
+    acquisition_str = '_acq-{}'.format(acquisition) if acquisition else ''
+
+    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{session_str}{acquisition_str}{space_str}_{suffix}.{extension}'.format(**locals())
+
+    return os.path.join(folder, str)
 
 def main(sourcedata, 
          derivatives,
          tmp_dir,
          subject=None,
+         acquisition=None,
          session=None,
          run=None):
 
@@ -20,56 +74,57 @@ def main(sourcedata,
     layout = BIDSLayout(sourcedata)
     derivatives_layout = BIDSLayout(derivatives)
 
-    dtissue = derivatives_layout.get(subject=subject,
-                                    type='dtissue',
-                                    return_type='file')
+    dtissue = get_derivative(derivatives,
+                          'fmriprep',
+                          'anat',
+                          subject,
+                          'dseg',
+                          session='anat')
+
+    assert(os.path.exists(dtissue)), 'DOES NOT EXIST:{}'.format(dtissue))
+
+    dura = get_dura_mask(derivatives,
+                         subject,
+                         'average',
+                         'anat')
 
 
-
-    dura = derivatives_layout.get(subject=subject,
-                                    type='dura',
-                                    return_type='file')
-
-
-    if len(dtissue) > 1:
-        warnings.warn('Found more than one white-matter segmentation! {} '\
-                      'Using {}'.format(dtissue, dtissue[0]))
-
-    dtissue = dtissue[0]
-    print(dtissue)
-    dura = dura[0]
+    print(dura, os.path.exists(dura))
 
     get_wm_wf =  get_wm_seg_from_fmriprep_wf(dtissue)
 
-    bold = layout.get(subject=subject,
-                      session=session,
-                      run=run,
-                      type='bold', 
-                      return_type='file')
+    bold = []
 
-    
+    for acq in acquisition:
+        bold += (layout.get(subject=subject,
+                          session=session,
+                          run=run,
+                          acquisition=acq,
+                          suffix='bold', 
+                          return_type='file'))
+
+
     epi = []
     for b in bold:
         fmaps = layout.get_fieldmap(b, return_list=True)
         for fmap in fmaps:
-            if fmap['type'] == 'epi':
+            if ('type' not in fmap) or (fmap['type'] == 'epi'):
                 break
         epi.append(fmap['epi'])
         print('Using {} as epi_op for {}'.format(fmap['epi'], b))
 
 
-    t1w = layout.get(subject=subject, type='T1w', return_type='file')[0]
+    t1w = get_averaged_image(derivatives, subject, session='anat')
 
-    init_matrix = derivatives_layout.get(subject=subject,
-                                         type='initmat',
-                                         extensions='mat',
-                                         return_type='file')
+    init_matrix = get_derivative(derivatives,
+                                  'manual_transformations',
+                                 'func',
+                                  subject,
+                                  'transform',
+                                  session=session,
+                                  space='average',
+                                  extension='mat')
 
-    if len(init_matrix) == 1:
-        init_matrix = init_matrix[0]
-    else:
-        init_matrix = None
-    print(init_matrix)
 
     wf = init_hires_unwarping_wf(name="unwarp_hires_{}".format(subject),
                               method='topup',
@@ -98,7 +153,7 @@ def main(sourcedata,
     wf.base_dir = tmp_dir
 
     wf.run(plugin='MultiProc', 
-           plugin_args={'n_procs' : 10})
+           plugin_args={'n_procs' : 6})
 
 def get_wm_seg_from_fmriprep_wf(dtissue):
     from nipype.interfaces import fsl
@@ -135,19 +190,26 @@ if __name__ == '__main__':
                         help="subject to process")
     parser.add_argument("session", 
                         type=str,
-                        default='*',
+                        nargs='?',
+                        default='.*',
+                        help="subject to process")
+    parser.add_argument("acquisition", 
+                        type=str,
+                        nargs='*',
+                        default='.*',
                         help="subject to process")
     parser.add_argument("run", 
-                        default=[], 
+                        default='.*', 
                         type=list,
                         nargs='*', 
                         help="runs to process")
     args = parser.parse_args()
 
-    main('/sourcedata', 
+    main('/sourcedata/ds-odc', 
          '/derivatives',
          subject=args.subject,
          session=args.session,
+         acquisition=args.acquisition,
          run=args.run,
          tmp_dir='/workflow_folders')
 
