@@ -5,9 +5,11 @@ services:
     build: .
     volumes:
       - ./analysis:/src
-      - $SOURCEDATA:/sourcedata
+      - $SOURCEDATA:/sourcedata/ds-odc
       - $DERIVATIVES:/derivatives
       - /tmp/workflow_folders:/workflow_folders
       - ./spynoza:/spynoza
       - ./crashdumps:/crashdumps
       - /home/hollander/git/nighres/nighres:/nighres/nighres
+      - /home/hollander/git/fmriprep:/fmriprep
+      - /home/hollander/.local/freesurfer/license.txt:/opt/freesurfer-6.0.1/license.txt

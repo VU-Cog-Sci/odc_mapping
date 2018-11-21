@@ -42,3 +42,11 @@ RUN bash -c "source activate neuro && pip uninstall -y spynoza && cd /spynoza &&
 
 COPY ./analysis /src
 COPY nipype.cfg /root/.nipype/nipype.cfg
+
+COPY fmriprep /fmriprep
+
+RUN git clone https://github.com/Gilles86/pymp2rage /tmp/pymp2rage \
+    && bash -c "source activate neuro && pip uninstall -y fmriprep && cd /fmriprep && python setup.py develop" \
+    && bash -c "source activate neuro && cd /tmp/pymp2rage && python setup.py install"
+
+
