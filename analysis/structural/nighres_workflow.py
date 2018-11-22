@@ -153,6 +153,19 @@ def weighted_sum(images, weights):
     return weighted_sum.get_filename()
 
 
+def reorient_to_image(source_img, target_img, interpolation='nearest'):
+    from nilearn import image
+    import os
+    from nipype.utils.filemanip import split_filename
+    _, fn, ext = split_filename(source_img)
+
+    new_img = image.resample_to_img(source_img, target_img, interpolation=interpolation)
+
+    new_img.to_filename(os.path.abspath('{fn}_reoriented{ext}'.format(fn=fn, ext=ext)))
+
+
+    return new_img.get_filename()
+
     
 def init_combine_segmentations_wf(name='combine_segmenetations_wf',
                                  manual_weight=5):
@@ -311,6 +324,12 @@ def init_nighres_wf(name='nighres',
 
 
     # merge WM
+    reorient_wm = pe.MapNode(niu.Function(function=reorient_to_image,
+                                          input_names=['source_img',
+                                                       'target_img'],
+                                          output_names='reoriented_image'),
+                             iterfield=['source_img', 'target_img'],
+                             name='reorient_wm')
     merge_wm = pe.MapNode(niu.Merge(2), iterfield=['in1', 'in2'],
                           name='merge_wm')
     weight_wm = pe.MapNode(niu.Function(function=weighted_sum,
@@ -320,11 +339,20 @@ def init_nighres_wf(name='nighres',
                        name='weight_wm')
     weight_wm.inputs.weights = [1., weight_other_segmentations]
 
-    wf.connect(extract_regions, 'inside_proba', merge_wm, 'in1')
-    wf.connect(inputnode, 'other_wm', merge_wm, 'in2')
+    wf.connect(inputnode, 'other_wm', reorient_wm, 'source_img')
+    wf.connect(extract_regions, 'region_proba', reorient_wm, 'target_img')
+    wf.connect(reorient_wm, 'reoriented_image', merge_wm, 'in2')
     wf.connect(merge_wm, 'out', weight_wm, 'images')
 
+    wf.connect(extract_regions, 'region_proba', merge_wm, 'in1')
+
     # merge GM
+    reorient_gm = pe.MapNode(niu.Function(function=reorient_to_image,
+                                          input_names=['source_img',
+                                                       'target_img'],
+                                          output_names='reoriented_image'),
+                             iterfield=['source_img', 'target_img'],
+                             name='reorient_gm')
     merge_gm = pe.MapNode(niu.Merge(2), iterfield=['in1', 'in2'],
                           name='merge_gm')
     weight_gm = pe.MapNode(niu.Function(function=weighted_sum,
@@ -333,11 +361,21 @@ def init_nighres_wf(name='nighres',
                        iterfield=['images'],
                        name='weight_gm')
     weight_gm.inputs.weights = [1., weight_other_segmentations]
-    wf.connect(extract_regions, 'region_proba', merge_gm, 'in1')
-    wf.connect(inputnode, 'other_gm', merge_gm, 'in2')
+
+    wf.connect(inputnode, 'other_gm', reorient_gm, 'source_img')
+    wf.connect(extract_regions, 'region_proba', reorient_gm, 'target_img')
+    wf.connect(reorient_gm, 'reoriented_image', merge_gm, 'in2')
     wf.connect(merge_gm, 'out', weight_gm, 'images')
 
+    wf.connect(extract_regions, 'region_proba', merge_gm, 'in1')
+
     # merge CSF
+    reorient_csf = pe.MapNode(niu.Function(function=reorient_to_image,
+                                          input_names=['source_img',
+                                                       'target_img'],
+                                          output_names='reoriented_image'),
+                             iterfield=['source_img', 'target_img'],
+                             name='reorient_csf')
     merge_csf = pe.MapNode(niu.Merge(2), iterfield=['in1', 'in2'],
                           name='merge_csf')
     weight_csf = pe.MapNode(niu.Function(function=weighted_sum,
@@ -346,17 +384,19 @@ def init_nighres_wf(name='nighres',
                        iterfield=['images'],
                        name='weight_csf')
     weight_csf.inputs.weights = [1., weight_other_segmentations]
-    wf.connect(extract_regions, 'background_proba', merge_csf, 'in1')
-    wf.connect(inputnode, 'other_csf', merge_csf, 'in2')
+
+    wf.connect(inputnode, 'other_csf', reorient_csf, 'source_img')
+    wf.connect(extract_regions, 'region_proba', reorient_csf, 'target_img')
+    wf.connect(reorient_csf, 'reoriented_image', merge_csf, 'in2')
     wf.connect(merge_csf, 'out', weight_csf, 'images')
 
-    cruise = pe.MapNode(CRUISECortexExtraction(), 
+    wf.connect(extract_regions, 'region_proba', merge_csf, 'in1')
+    cruise = pe.MapNode(CRUISECortexExtraction(normalize_probabilities=True),
                         iterfield=['init_image',
                                    'wm_image',
                                    'gm_image',
                                    'csf_image'],
                         name='cruise')
-
     wf.connect(weight_gm, 'weighted_sum', cruise, 'gm_image')
     wf.connect(weight_wm, 'weighted_sum', cruise, 'wm_image')
     wf.connect(weight_csf, 'weighted_sum', cruise, 'csf_image')
