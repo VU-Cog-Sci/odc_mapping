@@ -2,7 +2,7 @@ from nistats.first_level_model import FirstLevelModel
 from nistats.second_level_model import SecondLevelModel
 import pandas as pd
 import argparse
-from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 import os
 from nilearn import image
 from sklearn import decomposition
@@ -17,30 +17,30 @@ def main(sourcedata,
 
     sourcedata_layout = BIDSLayout(sourcedata)
     sourcedata_df = sourcedata_layout.as_data_frame()
-    events =  sourcedata_df[(sourcedata_df['type'] == 'events') &
+    events =  sourcedata_df[(sourcedata_df['suffix'] == 'events') &
                                (sourcedata_df['subject'] == subject) &
                                (sourcedata_df['session'] == session)]
 
-    derivatives_layout = BIDSLayout(os.path.join(derivatives, 'spynoza'))
+    derivatives_layout = BIDSLayout(os.path.join(derivatives),)
     derivatives_df = derivatives_layout.as_data_frame()
-    bold =  derivatives_df[(derivatives_df['type'] == 'preproc') &
+    bold =  derivatives_df[(derivatives_df['suffix'] == 'preproc') &
                                (derivatives_df['subject'] == subject) &
                                (derivatives_df['session'] == session)]
 
-    confounds =  derivatives_df[(derivatives_df['type'] == 'confounds') &
+    confounds =  derivatives_df[(derivatives_df['suffix'] == 'confounds') &
                                (derivatives_df['subject'] == subject) &
                                (derivatives_df['session'] == session)]
 
-    compcor =  derivatives_df[(derivatives_df['type'] == 'compcor') &
+    compcor =  derivatives_df[(derivatives_df['suffix'] == 'compcor') &
                               (derivatives_df['subject'] == subject) &
                               (derivatives_df['session'] == session)]
     print(compcor)
 
-    print(derivatives_df.type.unique())
+    print(derivatives_df.suffix.unique())
 
     mask = derivatives_layout.get(subject=subject,
                                   session=session,
-                                  type='mask',
+                                  suffix='mask',
                                   return_type='file')[0]
 
     df = events.merge(bold, on=['subject', 'session', 'run'],
@@ -155,7 +155,7 @@ if __name__ == '__main__':
                         help="subject to process")
     args = parser.parse_args()
 
-    main('/sourcedata', 
+    main('/sourcedata/ds-odc', 
          '/derivatives',
          subject=args.subject,
          session=args.session,
