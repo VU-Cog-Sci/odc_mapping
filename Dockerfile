@@ -37,16 +37,17 @@ RUN echo "YES"
 COPY nighres /nighres
 
 RUN cd /nighres \
-    && bash -c "source activate neuro && conda install jcc" \
-    && bash -c "source activate neuro && ./build.sh"
-    #&& bash -c "source activate neuro && python setup.py install"
+    && python3 -m pip install --upgrade pip jcc \
+    && ./build.sh \
+    && bash -c "source activate neuro && python setup.py install"
+
+#RUN cd /nighres \
+    #&& bash -c "source activate neuro && conda install jcc" \
+    #&& bash -c "source activate neuro && ./build.sh"
+    ##&& bash -c "source activate neuro && python setup.py install"
     
 COPY ./analysis /src
 COPY nipype.cfg /root/.nipype/nipype.cfg
-
-#COPY ./fmriprep /fmriprep
-
-#RUN bash -c "source activate neuro && pip uninstall -y fmriprep && cd /fmriprep && python setup.py develop"
 
 #RUN bash -c "source activate neuro && pip install fmriprep"
 COPY pymp2rage /pymp2rage
@@ -57,3 +58,6 @@ RUN bash -c "source activate neuro && pip uninstall -y pybids && cd /pybids && p
 
 COPY spynoza /spynoza
 RUN bash -c "source activate neuro && pip uninstall -y spynoza && cd /spynoza && python setup.py develop"
+
+COPY ./fmriprep /fmriprep
+RUN bash -c "source activate neuro && pip uninstall -y fmriprep && cd /fmriprep && python setup.py develop"
