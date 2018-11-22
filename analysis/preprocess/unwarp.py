@@ -45,6 +45,7 @@ def get_derivative(derivatives_folder,
                    session=None,
                    space=None,
                    acquisition=None,
+                   desc=None,
                    extension='nii.gz'):
 
     folder = os.path.join(derivatives_folder, type)
@@ -52,9 +53,10 @@ def get_derivative(derivatives_folder,
     session_str = '_ses-{}'.format(session) if session else ''
     session_folder = 'ses-{}/'.format(session) if session else ''
     space_str = '_space-{}'.format(space) if space else ''
+    desc_str = '_desc-{}'.format(desc) if desc else ''
     acquisition_str = '_acq-{}'.format(acquisition) if acquisition else ''
 
-    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{session_str}{acquisition_str}{space_str}_{suffix}.{extension}'.format(**locals())
+    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{session_str}{acquisition_str}{space_str}{desc_str}_{suffix}.{extension}'.format(**locals())
 
     return os.path.join(folder, str)
 
@@ -69,8 +71,6 @@ def main(sourcedata,
     if run is []:
         run = '[0-9]+'
 
-    print('Processing subject {subject}, session {session}, run {run}'.format(**locals()))
-
     layout = BIDSLayout(sourcedata)
     derivatives_layout = BIDSLayout(derivatives)
 
@@ -81,7 +81,6 @@ def main(sourcedata,
                           'dseg',
                           session='anat')
 
-    assert(os.path.exists(dtissue)), 'DOES NOT EXIST:{}'.format(dtissue))
 
     dura = get_dura_mask(derivatives,
                          subject,
@@ -114,7 +113,17 @@ def main(sourcedata,
         print('Using {} as epi_op for {}'.format(fmap['epi'], b))
 
 
-    t1w = get_averaged_image(derivatives, subject, session='anat')
+    t1w = get_derivative(derivatives,
+                         'masked_mp2rages',
+                         'anat',
+                         subject,
+                         'T1w',
+                         session='anat',
+                         space='average',
+                         desc='masked_no_dura_no_ss',
+                         extension='nii.gz')
+
+    print(t1w, os.path.exists(t1w))
 
     init_matrix = get_derivative(derivatives,
                                   'manual_transformations',
