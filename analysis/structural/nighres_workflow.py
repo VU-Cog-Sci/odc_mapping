@@ -1,4 +1,4 @@
-from utils import get_derivative
+from utils import get_derivative, binary_closing, largest_component
 from nighres_interfaces import (MP2RAGESkullStrip, MP2RAGEDuraEstimation, 
                                 MGDMSegmentation, ExtractBrainRegion,
                                 CRUISECortexExtraction)
@@ -40,8 +40,6 @@ def main(sourcedata,
                                  'probseg', label='WM', session='anat')
     fmriprep_gm = get_derivative(derivatives, 'fmriprep', 'anat', subject,
                                  'probseg', label='GM', session='anat')
-    fmriprep_csf = get_derivative(derivatives, 'fmriprep', 'anat', subject,
-                                 'probseg', label='CSF', session='anat')
 
     freesurfer_seg = get_derivative(derivatives, 'fmriprep', 'anat', subject,
                                     'dseg', description='aseg', session='anat') 
@@ -57,12 +55,12 @@ def main(sourcedata,
     wf.inputs.inputnode.manual_mask_outside = manual_outside_mask
     wf.inputs.inputnode.manual_mask_gm = manual_gm_mask
     wf.inputs.inputnode.manual_mask_wm = manual_wm_mask
-    wf.inputs.inputnode.fmriprep_csf = fmriprep_csf
     wf.inputs.inputnode.fmriprep_wm = fmriprep_wm
     wf.inputs.inputnode.fmriprep_gm = fmriprep_gm
     wf.inputs.inputnode.aseg = freesurfer_seg
 
     wf.run(plugin='MultiProc', plugin_args={'n_procs':10})
+    #wf.run()
 
 
 def init_from_fmriprep_to_nighres_wf(name='nighres',
@@ -77,22 +75,19 @@ def init_from_fmriprep_to_nighres_wf(name='nighres',
                                                       'manual_mask_outside',
                                                       'manual_mask_gm',
                                                       'manual_mask_wm',
-                                                      'fmriprep_csf',
                                                       'fmriprep_gm',
                                                       'fmriprep_wm',
                                                       'aseg']),
                         name='inputnode')
 
     fmriprep_segmentation_wf = init_combine_segmentations_wf(manual_weight=manual_weight)
-    for key in ['fmriprep_csf', 'fmriprep_wm', 'fmriprep_gm', 'aseg', 'manual_mask_outside',
-                'manual_mask_gm', 'manual_mask_wm']:
+    for key in ['fmriprep_wm', 'fmriprep_gm', 'aseg', 'manual_mask_gm', 'manual_mask_wm']:
         wf.connect(inputnode, key, fmriprep_segmentation_wf, 'inputnode.{}'.format(key))
 
     nighres_wf = init_nighres_wf()
 
     wf.connect([(fmriprep_segmentation_wf, nighres_wf,
                 [('outputnode.wm', 'inputnode.other_wm'),
-                 ('outputnode.csf', 'inputnode.other_csf'),
                  ('outputnode.gm' ,'inputnode.other_gm')]),
                ])
 
@@ -172,10 +167,8 @@ def init_combine_segmentations_wf(name='combine_segmenetations_wf',
 
     wf = pe.Workflow(name=name)
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['manual_mask_outside',
-                                                      'manual_mask_gm',
+    inputnode = pe.Node(niu.IdentityInterface(fields=['manual_mask_gm',
                                                       'manual_mask_wm',
-                                                      'fmriprep_csf',
                                                       'fmriprep_gm',
                                                       'fmriprep_wm',
                                                       'aseg']),
@@ -225,35 +218,17 @@ def init_combine_segmentations_wf(name='combine_segmenetations_wf',
     weight_gm.inputs.weights = [1., 1., manual_weight]
     wf.connect(merge_gm, 'out', weight_gm, 'images')
 
-    # CSF
-    merge_csf_fs = pe.Node(niu.Merge(2), name='merge_csf_fs')
-    wf.connect(freesurfer_seg, 'csf', merge_csf_fs, 'in1')
-    wf.connect(freesurfer_seg, 'csf', merge_csf_fs, 'in2')
-    merge_csf = pe.MapNode(niu.Merge(3), iterfield=['in1'],
-                          name='merge_csf') 
-    wf.connect(merge_csf_fs, 'out', merge_csf, 'in1')
-    wf.connect(inputnode, 'fmriprep_csf', merge_csf, 'in2')
-    wf.connect(inputnode, 'manual_mask_outside', merge_csf, 'in3')
-    
-    weight_csf = pe.MapNode(niu.Function(function=weighted_sum,
-                                     input_names=['images', 'weights'],
-                                     output_names=['weighted_sum']),
-                       iterfield=['images'],
-                       name='weight_csf')
-    weight_csf.inputs.weights = [1., 1., manual_weight]
-    wf.connect(merge_csf, 'out', weight_csf, 'images')
-     
-    outputnode = pe.Node(niu.IdentityInterface(fields=['wm', 'gm', 'csf']),
+    outputnode = pe.Node(niu.IdentityInterface(fields=['wm', 'gm']),
                          name='outputnode')
 
     wf.connect(weight_wm, 'weighted_sum', outputnode, 'wm')
     wf.connect(weight_gm, 'weighted_sum', outputnode, 'gm')
-    wf.connect(weight_csf, 'weighted_sum', outputnode, 'csf')
 
     return wf
 
 def init_nighres_wf(name='nighres',
                     derivatives='/derivatives',
+                    wm_init_threshold=0.5,
                     weight_other_segmentations=2):
 
 
@@ -263,7 +238,6 @@ def init_nighres_wf(name='nighres',
                                                       't1w',
                                                       't1map',
                                                       'manual_mask_outside',
-                                                      'other_csf',
                                                       'other_gm',
                                                       'other_wm',
                                     ]),
@@ -343,8 +317,7 @@ def init_nighres_wf(name='nighres',
     wf.connect(extract_regions, 'region_proba', reorient_wm, 'target_img')
     wf.connect(reorient_wm, 'reoriented_image', merge_wm, 'in2')
     wf.connect(merge_wm, 'out', weight_wm, 'images')
-
-    wf.connect(extract_regions, 'region_proba', merge_wm, 'in1')
+    wf.connect(extract_regions, 'inside_proba', merge_wm, 'in1')
 
     # merge GM
     reorient_gm = pe.MapNode(niu.Function(function=reorient_to_image,
@@ -366,31 +339,9 @@ def init_nighres_wf(name='nighres',
     wf.connect(extract_regions, 'region_proba', reorient_gm, 'target_img')
     wf.connect(reorient_gm, 'reoriented_image', merge_gm, 'in2')
     wf.connect(merge_gm, 'out', weight_gm, 'images')
-
     wf.connect(extract_regions, 'region_proba', merge_gm, 'in1')
 
-    # merge CSF
-    reorient_csf = pe.MapNode(niu.Function(function=reorient_to_image,
-                                          input_names=['source_img',
-                                                       'target_img'],
-                                          output_names='reoriented_image'),
-                             iterfield=['source_img', 'target_img'],
-                             name='reorient_csf')
-    merge_csf = pe.MapNode(niu.Merge(2), iterfield=['in1', 'in2'],
-                          name='merge_csf')
-    weight_csf = pe.MapNode(niu.Function(function=weighted_sum,
-                                     input_names=['images', 'weights'],
-                                     output_names=['weighted_sum']),
-                       iterfield=['images'],
-                       name='weight_csf')
-    weight_csf.inputs.weights = [1., weight_other_segmentations]
-
-    wf.connect(inputnode, 'other_csf', reorient_csf, 'source_img')
-    wf.connect(extract_regions, 'region_proba', reorient_csf, 'target_img')
-    wf.connect(reorient_csf, 'reoriented_image', merge_csf, 'in2')
-    wf.connect(merge_csf, 'out', weight_csf, 'images')
-
-    wf.connect(extract_regions, 'region_proba', merge_csf, 'in1')
+    # CRUISE
     cruise = pe.MapNode(CRUISECortexExtraction(normalize_probabilities=True),
                         iterfield=['init_image',
                                    'wm_image',
@@ -399,23 +350,115 @@ def init_nighres_wf(name='nighres',
                         name='cruise')
     wf.connect(weight_gm, 'weighted_sum', cruise, 'gm_image')
     wf.connect(weight_wm, 'weighted_sum', cruise, 'wm_image')
-    wf.connect(weight_csf, 'weighted_sum', cruise, 'csf_image')
-    wf.connect(extract_regions, 'inside_mask', cruise, 'init_image')
+    wf.connect(extract_regions, 'background_proba', cruise, 'csf_image')
     wf.connect(sum_filters2, 'out_file', cruise, 'vd_image')
-                    
+
+    threshold_wm = pe.MapNode(fsl.Threshold(thresh=wm_init_threshold, args='-bin'),
+                              iterfield=['in_file'],
+                               name='threshold_wm')
+    wf.connect(weight_wm, 'weighted_sum', threshold_wm, 'in_file')
+
+    largest_component_init_image = pe.MapNode(niu.Function(function=largest_component,
+                                                        input_names=['input_image'],
+                                                        output_names=['output_image']),
+                                              iterfield=['input_image'],
+                                              name='largest_component')
+    wf.connect(threshold_wm, 'out_file', largest_component_init_image, 'input_image')
+
+    close_init_image = pe.MapNode(niu.Function(function=binary_closing,
+                                            input_names=['input_image', 'iterations'],
+                                            output_names=['output_image']),
+                                  iterfield=['input_image'],
+                                  name='close_init_image')
+    close_init_image.inputs.iterations = 5
+
+    wf.connect(largest_component_init_image, 'output_image', close_init_image, 'input_image')
+    wf.connect(close_init_image, 'output_image', cruise, 'init_image')
+
+    ds_wf = init_nighres_ds_wf(derivatives=derivatives)
+    wf.connect([(cruise, ds_wf,
+                [('cortex', 'inputnode.cortex'),
+                 ('gwb', 'inputnode.gwb'),
+                 ('thickness', 'inputnode.thickness'),
+                 ('cgb', 'inputnode.cgb')]),
+               (inputnode, ds_wf,
+                [('t1w', 'inputnode.t1w')]),
+                (mgdm, ds_wf,
+                 [('segmentation', 'inputnode.segmentation')])
+                ])
+
+    # CRUISE only CBS-tools
+    cruise_only_cbs = pe.MapNode(CRUISECortexExtraction(normalize_probabilities=True),
+                                 iterfield=['init_image',
+                                            'wm_image',
+                                            'gm_image',
+                                            'csf_image'],
+                                 name='cruise_only_cbs')
+    wf.connect(extract_regions, 'inside_proba', cruise_only_cbs, 'wm_image')
+    wf.connect(extract_regions, 'region_proba', cruise_only_cbs, 'gm_image')
+    wf.connect(extract_regions, 'background_proba', cruise_only_cbs, 'csf_image')
+    wf.connect(extract_regions, 'inside_mask', cruise_only_cbs, 'init_image')
+    wf.connect(sum_filters2, 'out_file', cruise_only_cbs, 'vd_image')
+
+    ds_wf_only_cbs = init_nighres_ds_wf(derivatives=derivatives,
+                                        out_path_base='nighres_only_cbstools',
+                                        name='nighres_datasinks_only_cbstools')
+    wf.connect([(cruise_only_cbs, ds_wf_only_cbs,
+                [('cortex', 'inputnode.cortex'),
+                 ('gwb', 'inputnode.gwb'),
+                 ('thickness', 'inputnode.thickness'),
+                 ('cgb', 'inputnode.cgb')]),
+                (inputnode, ds_wf_only_cbs,
+                [('t1w', 'inputnode.t1w')]),
+                (mgdm, ds_wf_only_cbs,
+                 [('segmentation', 'inputnode.segmentation')])
+                ])
+
+    return wf
+
+def init_nighres_ds_wf(derivatives='/derivatives',
+                       out_path_base='nighres',
+                       name='nighres_datasinks'):
+
+    
+    wf = pe.Workflow(name=name)
+    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w',
+                                                      'cortex',
+                                                      'gwb',
+                                                      'cgb',
+                                                      'segmentation',
+                                                      'thickness']),
+                        name='inputnode')
+    
+    for key, suffix in zip(['cortex', 'gwb', 'cgb'],
+                           ['dseg', 'levelset', 'levelset']):
+        ds = pe.Node(DerivativesDataSink(base_directory=derivatives,
+                                         out_path_base=out_path_base,
+                                         desc=key,
+                                         suffix='hemi-{extra_value}_'+suffix),
+                     name='ds_{}'.format(key))
+        ds.inputs.extra_values = ['left', 'right']
+        wf.connect(inputnode, 't1w', ds, 'source_file')
+        wf.connect(inputnode, key, ds, 'in_file')
+
     ds_segmentation = pe.Node(DerivativesDataSink(base_directory=derivatives,
                                                   out_path_base='nighres',
                                                   desc='mgdm',
                                                   suffix='dseg'),
                                                   name='ds_segmentation')
-
-
-    wf.connect(mgdm, 'segmentation', ds_segmentation, 'in_file')
+    wf.connect(inputnode, 'segmentation', ds_segmentation, 'in_file')
     wf.connect(inputnode, 't1w', ds_segmentation, 'source_file')
 
-    return wf
-                                        
+    ds_thickness = pe.Node(DerivativesDataSink(base_directory=derivatives,
+                                                  out_path_base='nighres',
+                                                  suffix='thickness'),
+                                                  name='ds_thickness')
+    ds_thickness.inputs.extra_values = ['left', 'right']
+    wf.connect(inputnode, 'thickness', ds_thickness, 'in_file')
+    wf.connect(inputnode, 't1w', ds_thickness, 'source_file')
 
+    return wf
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("subject", 
