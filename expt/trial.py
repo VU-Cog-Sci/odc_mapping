@@ -358,6 +358,8 @@ class PRFTrial(Trial):
         self.fixation_colors = np.array([[1, -1, -1],
                                          [-1, 1, -1]])
 
+        self.frames_per_prf_cycle = self.session.framerate / self.parameters['prf_flicker_frequency']
+
         self.setup_stimuli()
        
     def setup_stimuli(self):
@@ -379,7 +381,7 @@ class PRFTrial(Trial):
                                          ori=self.parameters['right_ori'],
                                          checkerboard_type='none')
 
-        self.left_prf = BinocularPRFStim(self.screen,
+        self.prf_stimulus = BinocularPRFStim(self.screen,
                                          [[self.parameters['left_x'], self.parameters['left_y']],
                                           [self.parameters['right_x'], self.parameters['right_y']]],
                                          [self.parameters['left_size'] / self.parameters['cross_circle_ratio'],
@@ -423,7 +425,9 @@ class PRFTrial(Trial):
             self.left_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
             self.right_frame.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
 
-            self.left_prf.draw(phase=float(self.frame) / (self.trial_duration * self.session.framerate))
+            if (self.frame % self.frames_per_prf_cycle) > (self.frames_per_prf_cycle/2):
+                self.prf_stimulus.draw(phase=float(self.frame) / (self.trial_duration * self.session.framerate))
+
             self.left_frame.draw()
             self.right_frame.draw()
             self.frame += 1

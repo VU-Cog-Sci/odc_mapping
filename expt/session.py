@@ -88,7 +88,8 @@ class PRFSession(MRISession):
                     'element_spatial_frequency',
                     'color_ratio',
                     'element_lifetime',
-                    'bar_width_ratio',]:
+                    'bar_width_ratio',
+                    'prf_flicker_frequency']:
             parameters[par] = self.config.get('prf', par)
 
         parameters['RG_color'] = 1/parameters['color_ratio']
