@@ -8,6 +8,7 @@ from fmriprep.interfaces.utils import AddTPMs
 import os
 from fmriprep.interfaces import DerivativesDataSink
 from fmriprep.interfaces import GatherConfounds, AddTSVHeader
+from utils import get_derivative
 
 
 def main(sourcedata, 
@@ -19,19 +20,27 @@ def main(sourcedata,
          run=None):
 
     layout = BIDSLayout(sourcedata)
-    derivatives_layout = BIDSLayout(derivatives)
-    spynoza_layout = BIDSLayout(os.path.join(derivatives, 'spynoza'))
+    derivatives_layout = BIDSLayout('/derivatives')
 
+    cortex_l = get_derivative(derivatives, 'nighres', 'anat', subject, 'dseg',
+                              session='anat', space='average', description='cortex',
+                              hemi='left')
 
-    cortex_l = get_bids_file(derivatives_layout,
-                                subject,
-                                'cortex',
-                                'left_cruise')
-                                
-    cortex_r = get_bids_file(derivatives_layout,
-                                 subject,
-                                 'cortex',
-                                 'left_cruise')
+    cortex_r = get_derivative(derivatives, 'nighres', 'anat', subject, 'dseg',
+                              session='anat', space='average', description='cortex',
+                              hemi='left')
+
+    reference = derivatives_layout.get(subject=subject,
+                                       session=session,
+                                       type='reference',
+                                       return_type='file')
+    reference = sorted(reference)
+
+    bold = derivatives_layout.get(subject=subject,
+                                  session=session,
+                                  type='preproc',
+                                  return_type='file')
+    bold = sorted(bold)
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['cortex_l',
                                                      'cortex_r',
@@ -39,15 +48,11 @@ def main(sourcedata,
                                                       'reference']),
                         name='inputnode')
 
+
     inputnode.inputs.cortex_l = cortex_l
     inputnode.inputs.cortex_r = cortex_r
-    inputnode.inputs.bold = get_bids_files(spynoza_layout,
-                                           subject,
-                                           'preproc',
-                                           filter='bold_preproc')
-    inputnode.inputs.reference = get_bids_files(spynoza_layout,
-                                           subject,
-                                           'reference')
+    inputnode.inputs.bold = bold
+    inputnode.inputs.reference = reference
 
     get_masks = pe.MapNode(niu.Function(function=get_brain_regions_cruise,
                                    input_names=['cortex_l', 'cortex_r', 'type'],
