@@ -69,7 +69,7 @@ if __name__ == '__main__':
                         help="session to process")
     args = parser.parse_args()
 
-    main('/sourcedata', 
+    main('/sourcedata/ds-odc', 
          subject=args.subject,
          session=args.session)
 

@@ -1,14 +1,14 @@
 import nibabel as nb
 import os
 import sys
-from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 import shutil
 import argparse
 
 def main(bids_dir, subject, session):
 
     print(subject, bids_dir)
-    layout = BIDSLayout(bids_dir, absolute_paths=True)
+    layout = BIDSLayout(bids_dir)
     bolds = layout.get(subject=subject, 
                        session=session,
                        extensions='nii', type='bold')
@@ -37,7 +37,7 @@ if __name__ == '__main__':
                         help="Session to process")
     args = parser.parse_args()
 
-    main('/sourcedata', 
+    main('/sourcedata/ds-odc', 
          subject=args.subject,
          session=args.session)
 
