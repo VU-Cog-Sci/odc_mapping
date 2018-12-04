@@ -17,34 +17,33 @@ def main(sourcedata,
 
     sourcedata_layout = BIDSLayout(sourcedata)
     sourcedata_df = sourcedata_layout.as_data_frame()
-    events =  sourcedata_df[(sourcedata_df['suffix'] == 'events') &
+    events =  sourcedata_df[(sourcedata_df['type'] == 'events') &
                                (sourcedata_df['subject'] == subject) &
                                (sourcedata_df['session'] == session)]
 
     derivatives_layout = BIDSLayout(os.path.join(derivatives),)
     derivatives_df = derivatives_layout.as_data_frame()
-    bold =  derivatives_df[(derivatives_df['suffix'] == 'preproc') &
+    bold =  derivatives_df[(derivatives_df['type'] == 'preproc') &
                                (derivatives_df['subject'] == subject) &
                                (derivatives_df['session'] == session)]
 
-    confounds =  derivatives_df[(derivatives_df['suffix'] == 'confounds') &
+    confounds =  derivatives_df[(derivatives_df['type'] == 'confounds') &
                                (derivatives_df['subject'] == subject) &
                                (derivatives_df['session'] == session)]
 
-    compcor =  derivatives_df[(derivatives_df['suffix'] == 'compcor') &
+    compcor =  derivatives_df[(derivatives_df['type'] == 'compcor') &
                               (derivatives_df['subject'] == subject) &
                               (derivatives_df['session'] == session)]
-    print(compcor)
-
-    print(derivatives_df.suffix.unique())
 
     mask = derivatives_layout.get(subject=subject,
                                   session=session,
-                                  suffix='mask',
+                                  type='mask',
                                   return_type='file')[0]
 
     df = events.merge(bold, on=['subject', 'session', 'run'],
                            suffixes=('_events','_bold'))
+
+    print(df)
 
     confounds = confounds.rename(columns={'path':'confounds'})
     df = df.merge(confounds[['subject', 'session', 'run', 'confounds']])
@@ -53,6 +52,8 @@ def main(sourcedata,
     df = df.merge(compcor[['subject', 'session', 'run', 'compcor']])
 
     df.sort_values('run', inplace=True)
+
+    print(df)
     
     models = []
     for ix, row in df.iterrows():
