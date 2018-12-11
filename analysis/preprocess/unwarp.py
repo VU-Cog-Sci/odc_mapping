@@ -53,13 +53,24 @@ def main(sourcedata,
     layout = BIDSLayout(sourcedata)
     derivatives_layout = BIDSLayout(derivatives)
 
-    dtissue = get_derivative(derivatives,
-                          'fmriprep',
-                          'anat',
-                          subject,
-                          'dseg',
-                          session='anat')
-
+    dtissue_left = get_derivative(derivatives,
+                                  'nighres',
+                                  'anat',
+                                  subject,
+                                  'dseg',
+                                  hemi='left',
+                                  space='average',
+                                  description='cortex',
+                                  session='anat')
+    dtissue_right = get_derivative(derivatives,
+                                  'nighres',
+                                  'anat',
+                                  subject,
+                                  'dseg',
+                                  hemi='right',
+                                  space='average',
+                                  description='cortex',
+                                  session='anat')
 
     dura = get_dura_mask(derivatives,
                          subject,
@@ -67,9 +78,7 @@ def main(sourcedata,
                          'anat')
 
 
-    print(dura, os.path.exists(dura))
-
-    get_wm_wf =  get_wm_seg_from_fmriprep_wf(dtissue)
+    get_wm_wf =  get_wm_seg_from_nighres(dtissue_left, dtissue_right)
 
     bold = []
 
@@ -99,7 +108,7 @@ def main(sourcedata,
                          'T1w',
                          session='anat',
                          space='average',
-                         desc='masked_no_dura_no_ss',
+                         description='masked',
                          extension='nii.gz')
 
     print(t1w, os.path.exists(t1w))
@@ -163,6 +172,37 @@ def get_wm_seg_from_fmriprep_wf(dtissue):
                                                        name='outputspec')
 
     wf.connect(inputspec, 'fmriprep_dtissue', get_wm, 'in_file')
+    wf.connect(get_wm, 'out_file', outputspec, 'wm_seg')
+
+    return wf
+
+def get_wm_seg_from_nighres(dseg_l, dseg_r):
+    from nipype.interfaces import fsl
+    import nipype.interfaces.utility as util
+    import nipype.pipeline.engine as pe
+
+    wf = pe.Workflow(name='get_wm_seg')
+
+    inputspec = pe.Node(util.IdentityInterface(fields=['dseg_l', 'dseg_r']),
+                        name='inputspec')
+
+    inputspec.inputs.dseg_l = dseg_l
+    inputspec.inputs.dseg_r = dseg_r
+
+    add = pe.Node(fsl.BinaryMaths(operation='add'), 
+                  name='add')
+
+    wf.connect(inputspec, 'dseg_l', add, 'in_file')
+    wf.connect(inputspec, 'dseg_r', add, 'operand_file')
+
+    get_wm = pe.Node(fsl.Threshold(thresh=2,
+                               args='-bin'),
+                     name='get_wm')
+    outputspec= pe.Node(util.IdentityInterface(fields=['wm_seg']), 
+                                                       name='outputspec')
+
+    wf.connect(add, 'out_file', get_wm, 'in_file')
+
     wf.connect(get_wm, 'out_file', outputspec, 'wm_seg')
 
     return wf
