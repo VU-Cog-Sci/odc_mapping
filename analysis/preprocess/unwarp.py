@@ -5,6 +5,7 @@ import os
 import argparse
 import warnings
 import re
+from utils import get_derivative
 
 def get_dura_mask(derivatives,
                   subject,
@@ -37,28 +38,6 @@ def get_averaged_image(derivatives,
 
     return os.path.join(folder, str)
 
-def get_derivative(derivatives_folder,
-                   type,
-                   modality,
-                   subject,
-                   suffix,
-                   session=None,
-                   space=None,
-                   acquisition=None,
-                   desc=None,
-                   extension='nii.gz'):
-
-    folder = os.path.join(derivatives_folder, type)
-    
-    session_str = '_ses-{}'.format(session) if session else ''
-    session_folder = 'ses-{}/'.format(session) if session else ''
-    space_str = '_space-{}'.format(space) if space else ''
-    desc_str = '_desc-{}'.format(desc) if desc else ''
-    acquisition_str = '_acq-{}'.format(acquisition) if acquisition else ''
-
-    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{session_str}{acquisition_str}{space_str}{desc_str}_{suffix}.{extension}'.format(**locals())
-
-    return os.path.join(folder, str)
 
 def main(sourcedata, 
          derivatives,
