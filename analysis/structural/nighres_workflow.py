@@ -37,12 +37,12 @@ def main(sourcedata,
                                      check_exists=False, space='average')
 
     fmriprep_wm = get_derivative(derivatives, 'fmriprep', 'anat', subject,
-                                 'probseg', label='WM', session='anat')
+                                 'probtissue', cls='WM', old_fmriprep=True)
     fmriprep_gm = get_derivative(derivatives, 'fmriprep', 'anat', subject,
-                                 'probseg', label='GM', session='anat')
+                                 'probtissue', cls='GM', old_fmriprep=True)
 
     freesurfer_seg = get_derivative(derivatives, 'fmriprep', 'anat', subject,
-                                    'dseg', description='aseg', session='anat') 
+                                    'roi', label='aseg', old_fmriprep=True) 
 
     name = 'nighres_{}'.format(subject)
 
@@ -127,7 +127,7 @@ def get_freesurfer_seg(aseg):
             gm_r.get_filename(),
             csf.get_filename())
 
-def weighted_sum(images, weights):
+def weighted_sum(images, weights, normalize=True):
     from nilearn import image
     import os
     from nipype.utils.filemanip import split_filename
@@ -140,7 +140,9 @@ def weighted_sum(images, weights):
     
 
     images = image.concat_imgs(images)
-    weights = np.array(weights) / np.sum(weights)
+
+    if normalize:
+        weights = np.array(weights) / np.sum(weights)
 
     weighted_sum = image.new_img_like(images, (images.get_data() * weights).sum(-1))
     weighted_sum.to_filename(os.path.abspath('{fn}_sum{ext}'.format(fn=fn, ext=ext)))
@@ -193,14 +195,17 @@ def init_combine_segmentations_wf(name='combine_segmenetations_wf',
     wf.connect(inputnode, 'manual_mask_wm', merge_wm, 'in3')
     
     weight_wm = pe.MapNode(niu.Function(function=weighted_sum,
-                                     input_names=['images', 'weights'],
+                                     input_names=['images',
+                                                  'weights',
+                                                  'normalize'],
                                      output_names=['weighted_sum']),
                        iterfield=['images'],
                        name='weight_wm')
-    weight_wm.inputs.weights = [1., 1., manual_weight]
+    weight_wm.inputs.weights = [.5, .5, manual_weight]
+    weight_wm.inputs.normalize = False
     wf.connect(merge_wm, 'out', weight_wm, 'images')
 
-    # White matter
+    # Gray matter
     merge_gm_fs = pe.Node(niu.Merge(2), name='merge_gm_fs')
     wf.connect(freesurfer_seg, 'gm_l', merge_gm_fs, 'in1')
     wf.connect(freesurfer_seg, 'gm_r', merge_gm_fs, 'in2')
@@ -211,11 +216,14 @@ def init_combine_segmentations_wf(name='combine_segmenetations_wf',
     wf.connect(inputnode, 'manual_mask_gm', merge_gm, 'in3')
     
     weight_gm = pe.MapNode(niu.Function(function=weighted_sum,
-                                     input_names=['images', 'weights'],
+                                     input_names=['images',
+                                                  'weights',
+                                                  'normalize'],
                                      output_names=['weighted_sum']),
                        iterfield=['images'],
                        name='weight_gm')
-    weight_gm.inputs.weights = [1., 1., manual_weight]
+    weight_gm.inputs.weights = [.5, .5, manual_weight]
+    weight_gm.inputs.normalize = False
     wf.connect(merge_gm, 'out', weight_gm, 'images')
 
     outputnode = pe.Node(niu.IdentityInterface(fields=['wm', 'gm']),
@@ -451,7 +459,7 @@ def init_nighres_ds_wf(derivatives='/derivatives',
 
     ds_thickness = pe.Node(DerivativesDataSink(base_directory=derivatives,
                                                   out_path_base='nighres',
-                                                  suffix='thickness'),
+                                                  suffix='hemi-{extra_value}_thickness'),
                                                   name='ds_thickness')
     ds_thickness.inputs.extra_values = ['left', 'right']
     wf.connect(inputnode, 'thickness', ds_thickness, 'in_file')

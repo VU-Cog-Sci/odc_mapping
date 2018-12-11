@@ -10,6 +10,8 @@ def get_derivative(derivatives_folder,
                    acquisition=None,
                    description=None,
                    label=None,
+                   cls=None,
+                   old_fmriprep=False,
                    extension='nii.gz',
                    check_exists=True):
 
@@ -20,9 +22,12 @@ def get_derivative(derivatives_folder,
     space_str = '_space-{}'.format(space) if space else ''
     desc_str = '_desc-{}'.format(description) if description else ''
     label_str = '_label-{}'.format(label) if label else ''
+    class_str = '_class-{}'.format(cls) if cls else ''
     acquisition_str = '_acq-{}'.format(acquisition) if acquisition else ''
 
-    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{session_str}{acquisition_str}{space_str}{label_str}{desc_str}_{suffix}.{extension}'.format(**locals())
+    fmriprep_str = '_T1w' if old_fmriprep else ''
+
+    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{fmriprep_str}{session_str}{acquisition_str}{space_str}{class_str}{label_str}{desc_str}_{suffix}.{extension}'.format(**locals())
 
     fn = os.path.join(folder, str)
 
