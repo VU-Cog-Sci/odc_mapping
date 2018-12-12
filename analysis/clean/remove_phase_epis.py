@@ -1,5 +1,5 @@
 import glob
-from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 import os, sys
 from nilearn import image
 import nibabel as nb
@@ -28,7 +28,7 @@ def main(sourcedata,
     epis = layout.get(subject=subject,
                       session=session,
                       extensions='nii',
-                      type='epi')
+                      suffix='epi')
 
     for epi in epis:
         epi_im = nb.load(epi.filename)
@@ -45,7 +45,7 @@ def main(sourcedata,
     bolds = layout.get(subject=subject,
                        session=session,
                        extensions='nii',
-                       type='bold')
+                       suffix='bold')
 
     for bold in bolds:
         bold_im = nb.load(bold.filename)
@@ -66,16 +66,18 @@ if __name__ == '__main__':
                         default='*',
                         help="Session to process")
     parser.add_argument("length_epi", 
-                        default=10,
+                        default=10, #or 16 for prf
+                        nargs='?',
                         type=int,
                         help="Length of EPIs to correct")
     parser.add_argument("length_bold", 
-                        default=132,
+                        default=132, # or 236 for prf
+                        nargs='?',
                         type=int,
                         help="Length of BOLDs to correct")
     args = parser.parse_args()
 
-    main('/sourcedata', 
+    main('/sourcedata/ds-odc', 
          subject=args.subject,
          session=args.session,
          length_epi=args.length_epi,
