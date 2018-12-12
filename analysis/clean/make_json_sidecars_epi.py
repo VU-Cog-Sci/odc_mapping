@@ -13,10 +13,10 @@ def main(bids_dir,
     bolds = layout.get(subject=subject, 
                        session=session,
                        extensions='nii', 
-                       type='bold')
+                       suffix='bold')
     
     for bold in bolds:
-        epi = layout.get(type='epi',
+        epi = layout.get(suffix='epi',
                          subject=subject,
                          session=session,
                          extensions='nii',
@@ -49,7 +49,7 @@ if __name__ == '__main__':
                         help="Session to process")
     args = parser.parse_args()
 
-    main('/sourcedata', 
+    main('/sourcedata/ds-odc', 
          subject=args.subject,
          session=args.session)
 
