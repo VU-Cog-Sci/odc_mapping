@@ -72,6 +72,7 @@ global:
     element_lifetime: 0.05
     bar_width_ratio: 0.125
 
+    prf_flicker_frequency: 12
 
     stim_present_booleans: [1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0]  
     stim_direction_indices: [0, 0, 7, 0, 4, 3, 0, 2, 1, 0, 6, 5, 0]
