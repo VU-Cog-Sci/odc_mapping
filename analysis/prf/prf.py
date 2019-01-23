@@ -2,6 +2,10 @@ import numpy as np
 from scipy.signal import savgol_filter, fftconvolve, resample
 from sklearn.model_selection import LeaveOneOut
 from sklearn import linear_model
+from popeye.visual_stimulus import VisualStimulus
+import popeye.og as OGModel
+import popeye.utilities as utils
+from scipy import signal
 
 class PRFRidgeModel(object):
     
@@ -26,7 +30,6 @@ class PRFRidgeModel(object):
             if window_length % 2 == 0:
                 window_length += 1
                 
-            self.data[..., self.mask] -= savgol_filter(self.data[..., self.mask], window_length, polyorder, axis=1)
             self.bold_dm -= savgol_filter(self.bold_dm, window_length, polyorder, axis=0)
         
         self.X_ = self.bold_dm.reshape(self.n_timepoints, -1)
@@ -95,3 +98,62 @@ class PRFTikhonovModel(PRFRidgeModel):
 
         return r2
 
+
+class PRFGridSearch(object):
+    
+    
+    def __init__(self, dm, viewing_distance, screen_width, tr_dm):
+        
+        self.stimulus = VisualStimulus(stim_arr=dm,
+                            viewing_distance=viewing_distance, 
+                            screen_width=screen_width,
+                            scale_factor=1,
+                            tr_length=tr_dm,
+                            dtype = np.short)
+        
+        self.model_func = OGModel.GaussianModel(stimulus=self.stimulus, hrf_model=utils.spm_hrf)
+        self.model_func.hrf_delay = 0
+        self.predictions = None
+        
+        
+    def make_predictions(self, angles, eccentricities, sizes):
+        self.angles, self.eccentricities, self.sizes, = np.meshgrid(angles, eccentricities, sizes)        
+        self.predictions = np.zeros(list(self.angles.shape) + [self.stimulus.run_length])
+        self.predictions = self.predictions.reshape(-1, self.predictions.shape[-1]).T
+
+        self.xs = np.cos(self.angles) * self.eccentricities
+        self.ys = np.sin(self.angles) * self.eccentricities
+        
+        for i, (x, y, s) in enumerate(zip(self.xs.ravel(), self.ys.ravel(), self.sizes.ravel())):
+            self.predictions[:, i] = self.model_func.generate_prediction(x, y, s, 1, 0)        
+        
+    def fit(self, data):
+        if self.predictions is None:
+            raise Exception('First use self.make_predictions!')
+        
+        self.predictions_ = signal.resample(self.predictions, data.shape[0], axis=0)
+        self.predictions_ -= self.predictions_.mean(0)[np.newaxis, :]
+        
+        self.data_ = data - data.mean(0)[np.newaxis, :]
+        
+        # Calculate R^2
+        self.num = (np.dot(self.predictions_.T, self.data_) / self.data_.shape[0])
+        self.denom = self.predictions_.std(0)[:, np.newaxis] * self.data_.std(0)[np.newaxis, :]
+        self.r2 = (self.num / self.denom)**2
+        self.r2[np.isnan(self.r2)] = 0
+        
+        print(self.r2.shape)
+        best_pars = np.argmax(self.r2, 0)
+        print(best_pars.shape, self.angles.shape)
+        
+        self.best_x, self.best_y, self.best_s = self.xs.ravel()[best_pars], self.ys.ravel()[best_pars], self.sizes.ravel()[best_pars]
+        self.best_angle = self.angles.ravel()[best_pars]
+        self.best_ecc = self.eccentricities.ravel()[best_pars]
+
+        return {'x':self.best_x, 
+                'y':self.best_y, 
+                'size':self.best_s,
+                'r2':self.r2.max(0),
+                'angle':self.best_angle,
+                'ecc':self.best_ecc}
+        
