@@ -1,0 +1,24 @@
+[
+    {
+        "group": 1,
+        "imports": [],
+        "name": "0_lta_convert",
+        "size": 1
+    },
+    {
+        "group": 1,
+        "imports": [
+            "0_lta_convert"
+        ],
+        "name": "1_bbregister_N",
+        "size": 1
+    },
+    {
+        "group": 1,
+        "imports": [
+            "1_bbregister_N"
+        ],
+        "name": "2_invert_EPI_N",
+        "size": 1
+    }
+]

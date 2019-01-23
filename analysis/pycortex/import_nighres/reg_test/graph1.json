@@ -1,0 +1,46 @@
+{
+    "groups": [
+        {
+            "name": "Group_00001",
+            "procs": [
+                0,
+                1,
+                2
+            ],
+            "total": 3
+        }
+    ],
+    "links": [
+        {
+            "source": 0,
+            "target": 1,
+            "value": 1
+        },
+        {
+            "source": 1,
+            "target": 2,
+            "value": 1
+        }
+    ],
+    "maxN": 3,
+    "nodes": [
+        {
+            "group": 1,
+            "name": "0_lta_convert",
+            "report": "/lta_convert/_report/report.rst",
+            "result": "/lta_convert/result_lta_convert.pklz"
+        },
+        {
+            "group": 1,
+            "name": "1_bbregister_N",
+            "report": "/bbregister_N/_report/report.rst",
+            "result": "/bbregister_N/result_bbregister_N.pklz"
+        },
+        {
+            "group": 1,
+            "name": "2_invert_EPI_N",
+            "report": "/invert_EPI_N/_report/report.rst",
+            "result": "/invert_EPI_N/result_invert_EPI_N.pklz"
+        }
+    ]
+}
