@@ -7,6 +7,8 @@ from nilearn import image, input_data
 import pandas as pd
 from itertools import product
 from nilearn import surface
+from utils import get_voxel_data
+from scipy.signal import savgol_filter, fftconvolve, resample
 
 def main(subject,
          session,
@@ -24,28 +26,7 @@ def main(subject,
     bold_dm = np.loadtxt(op.join(derivatives, 'prf', 'bold_dm.txt'))
 
     if source == 'voxels':
-        masks = image.load_img(op.join(derivatives, 'nighres/sub-{subject}/ses-anat/anat/sub-{subject}_ses-anat_space-average_desc-cortex_hemi-left_dseg.nii.gz'.format(subject=subject))), image.load_img(op.join(derivatives, 'nighres/sub-{subject}/ses-anat/anat/sub-{subject}_ses-anat_space-average_desc-cortex_hemi-right_dseg.nii.gz'.format(subject=subject)))
-
-        gm = image.math_img('(mask1+ mask2) == 1', mask1=masks[0], mask2=masks[1])
-        im = image.load_img('/data/odc/derivatives/spynoza/sub-de/ses-prf/func/sub-de_ses-prf_task-prf_acq-10_run-{run:02d}_preproc.nii.gz'.format(run=1))
-        gm = image.resample_to_img(gm, im, interpolation='nearest')
-        masker = input_data.NiftiMasker(gm)
-
-        data = []
-
-        for ix in range(1,4):
-            mov = pd.read_table(op.join(derivatives, 'spynoza/sub-{subject}/ses-prf/func/sub-{subject}_ses-{session}_task-prf_acq-10_run-{run:02d}_confounds.tsv'.format(subject=subject, run=ix, session=session)))
-            compcorr = pd.read_table(op.join(derivatives,'spynoza/sub-{subject}/ses-prf/func/sub-{subject}_ses-{session}_task-prf_acq-10_run-{run:02d}_confounds_compcor.tsv'.format(subject=subject, run=ix, session=session)))
-            confounds = pd.concat((mov, compcorr), 1).fillna(method='bfill')
-            im = image.load_img('/data/odc/derivatives/spynoza/sub-de/ses-prf/func/sub-de_ses-prf_task-prf_acq-10_run-{run:02d}_preproc.nii.gz'.format(run=ix))
-            
-            confounds_to_include = ['framewise_displacement', 'x', 'y', 'z', 'rot_x', 'rot_y', 'rot_z',
-               'a_comp_cor00', 'a_comp_cor01', 'a_comp_cor02', 'a_comp_cor03', 'a_comp_cor04', 'a_comp_cor05']
-            
-            data.append(masker.fit_transform(im,
-                                             confounds=confounds[confounds_to_include].values))
-
-        data = np.array(data)
+        data, masker = get_voxel_data(derivatives, subject, session)
     
     if source == 'vert':
         sub_dir = op.join(derivatives, 'sampled_giis/sub-{subject}/ses-prf/func').format(**locals())
