@@ -17,6 +17,17 @@ def main(subject,
          TR=2.7,
          n_pixels=50):
 
+    dm = np.load(op.join(derivatives, 'prf/dm.npy'))
+
+    grid_searcher = PRFGridSearch(dm, distance_screen, size_cm, 1.0)
+
+    eccs = np.hstack(([0], np.geomspace(1, 20, 19)))
+    angles = np.linspace(-np.pi, np.pi, 20, endpoint=False)
+    sizes = np.geomspace(2, 15, 20)
+
+    print('making predictions')
+    grid_searcher.make_predictions(angles, eccs, sizes)
+
     if source == 'vertices':
 
         print('loading data')
@@ -29,22 +40,10 @@ def main(subject,
         #data = np.mean(data, 0)
         mask = (data != 0).all(0)
 
-        print("loading design matrix")
-        dm = np.load(op.join(derivatives, 'prf/dm.npy'))
-
-        grid_searcher = PRFGridSearch(dm, distance_screen, size_cm, 1.0)
-
-        eccs = np.hstack(([0], np.geomspace(1, 20, 24)))
-        angles = np.linspace(-np.pi, np.pi, 25, endpoint=False)
-        sizes = np.geomspace(2, 15, 25)
-
-        print('making predictions')
-        grid_searcher.make_predictions(angles, eccs, sizes)
 
         print('searching')
         pars = grid_searcher.fit(data[:, mask])
 
-        #return pars
 
         r2 = np.zeros(data.shape[1])
         size = np.zeros(data.shape[1])
@@ -56,21 +55,25 @@ def main(subject,
         angle[mask] = pars['angle']
         ecc[mask] = pars['ecc']
 
-        np.savez(op.join(out_dir, 'sub-{subject}_desc-{description}_prf_pars.npyz'.format(**locals())), 
+        np.savez(op.join(out_dir, 'sub-{subject}_desc-{description}_prf_pars'.format(**locals())), 
                  r2=r2,
                  size=size,
                  angle=angle,
                  ecc=ecc)
  
-        #r2[mask] = pars['r2']
-        #return {'x':self.best_x, 
-                #'y':self.best_y, 
-                #'size':self.best_s,
-                #'r2':self.r2.ravel()[best_pars],
-                #'angle':df.angle.values,
-                #'ecc':df.ecc.values}
+    elif source == 'voxels':
+        print('getting data')
+        data, masker = get_voxel_data(derivatives, subject, session)
+        data = np.mean(data, 0)
+        print(data.shape)
         
-    
+        print('Searching for model')
+        pars = grid_searcher.fit(data)
+
+        for thing in ['r2', 'size', 'angle', 'ecc']:
+            fn = op.join(out_dir, 'sub-{subject}_desc-{description}_prf_{thing}.nii'.format(**locals()))
+            masker.inverse_transform(pars[thing]).to_filename(fn)
+
 
 if __name__ == '__main__':
 

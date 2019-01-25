@@ -107,6 +107,7 @@ class StimulationTrial(MRITrial):
             self.right_stimulus.fixation.fixation_stim3.color = self.fixation_colors[self.colors[self.frame]]
 
         super(StimulationTrial, self).draw()
+        self.screen.getMovieFrame()
 
     def setup_stimuli(self):
         """setup_stimuli creates all stimuli that do not change from trial to trial"""
@@ -147,6 +148,7 @@ class StimulationTrial(MRITrial):
                     [-99, self.session.clock.getTime() - self.start_time])
 
                 self.stopped = True
+                self.screen.saveMovieFrames('test.mp4', fps=self.session.framerate)
                 self.session.stopped = True
                 print 'run canceled by user'
 
