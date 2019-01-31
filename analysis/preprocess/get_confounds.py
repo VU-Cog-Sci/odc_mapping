@@ -1,7 +1,7 @@
 import argparse
 from nilearn import image
 import nipype.pipeline.engine as pe
-from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 import nipype.interfaces.utility as niu
 from nipype.algorithms.confounds import ACompCor, ComputeDVARS
 from fmriprep.interfaces.utils import AddTPMs
@@ -30,29 +30,33 @@ def main(sourcedata,
                               session='anat', space='average', description='cortex',
                               hemi='left')
 
-    reference = derivatives_layout.get(subject=subject,
+    mask = derivatives_layout.get(subject=subject,
                                        session=session,
-                                       type='reference',
+                                       suffix='mask',
                                        return_type='file')
-    reference = sorted(reference)
+    mask = sorted(mask)
+    assert(len(mask) == 1)
+    mask = mask[0]
 
     bold = derivatives_layout.get(subject=subject,
                                   session=session,
-                                  type='preproc',
+                                  suffix='preproc',
                                   return_type='file')
     bold = sorted(bold)
+    print('BOLD: {}'.format(bold))
+    print('MASK: {}'.format(mask))
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['cortex_l',
                                                      'cortex_r',
                                                       'bold',
-                                                      'reference']),
+                                                      'mask']),
                         name='inputnode')
 
 
     inputnode.inputs.cortex_l = cortex_l
     inputnode.inputs.cortex_r = cortex_r
     inputnode.inputs.bold = bold
-    inputnode.inputs.reference = reference
+    inputnode.inputs.mask = mask
 
     get_masks = pe.MapNode(niu.Function(function=get_brain_regions_cruise,
                                    input_names=['cortex_l', 'cortex_r', 'type'],
@@ -88,9 +92,9 @@ def main(sourcedata,
 
 
     dvars = pe.MapNode(ComputeDVARS(),
-                       iterfield=['in_file', 'in_mask'],
+                       iterfield=['in_file'],
                        name='dvars')
-    wf.connect(inputnode, 'reference', dvars, 'in_mask')
+    wf.connect(inputnode, 'mask', dvars, 'in_mask')
     wf.connect(inputnode, 'bold', dvars, 'in_file')
 
     add_header = pe.MapNode(AddTSVHeader(columns=["dvars"]),
@@ -224,7 +228,7 @@ if __name__ == '__main__':
                         help="runs to process")
     args = parser.parse_args()
 
-    main('/sourcedata', 
+    main('/sourcedata/ds-odc', 
          '/derivatives',
          subject=args.subject,
          session=args.session,
