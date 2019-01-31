@@ -1,18 +1,23 @@
 import pandas as pd
-from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 import argparse
 import numpy as np
 import ast
 import os
+import glob
+import os.path as op
 
 
 def main(bids_dir, subject, session):
     layout = BIDSLayout(bids_dir)
     
-    trials = layout.get(type='trials', 
+    trials = layout.get(suffix='trials', 
                         session=session,
                         subject=subject,
                         extensions='tsv')
+
+    trials = glob.glob(op.join(bids_dir, 'sub-{subject}/ses-{session}/beh/*.tsv'.format(**locals())))
+    print(trials)
 
     onset_dir = os.path.join(bids_dir, 
                       'sub-{}'.format(subject))
@@ -24,7 +29,7 @@ def main(bids_dir, subject, session):
 
     for trial in trials:
         print(trial)
-        trial_properties = pd.read_table(trial.filename, index_col=0)
+        trial_properties = pd.read_table(trial, index_col=0)
 
         eye_onsets = []
 
@@ -53,11 +58,10 @@ def main(bids_dir, subject, session):
             session_str = '_ses-{}'.format(session)
         else:
             session_str = ''
-        fn = 'sub-{subject}{session_str}_task-{task}_acq-07_run-{run:02d}_events.tsv'.format(subject=trial.subject,
-                                                                                         session_str=session_str,
-                                                                                         task=trial.task,
-                                                                                         run=int(trial.run))
+        _, fn = op.split(trial)
+        fn = fn.replace('_trials', '_events')
         fn = os.path.join(onset_dir, fn)
+        print(fn)
         
         onsets.to_csv(fn, sep='\t', index=False)
 
