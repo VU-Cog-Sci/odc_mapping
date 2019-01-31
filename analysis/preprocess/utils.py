@@ -30,6 +30,15 @@ def get_derivative(derivatives_folder,
 
     fn = os.path.join(folder, str)
 
+    if '*' in fn:
+        fns = glob.glob(fn)
+
+        if len(fns) == 0:
+            if check_exists:
+                raise Exception('No filenames like pattern: {}!'.format(fn))
+            else:
+                return None
+
     if not os.path.exists(fn):
         if check_exists:
             raise Exception('{} does not exists!'.format(fn))
