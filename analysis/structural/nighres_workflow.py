@@ -37,12 +37,12 @@ def main(sourcedata,
                                      check_exists=False, space='average')
 
     fmriprep_wm = get_derivative(derivatives, 'fmriprep', 'anat', subject,
-                                 'probtissue', cls='WM', old_fmriprep=True)
+                                 'probseg', label='WM', old_fmriprep=False)
     fmriprep_gm = get_derivative(derivatives, 'fmriprep', 'anat', subject,
-                                 'probtissue', cls='GM', old_fmriprep=True)
+                                 'probseg', label='GM', old_fmriprep=False)
 
     freesurfer_seg = get_derivative(derivatives, 'fmriprep', 'anat', subject,
-                                    'roi', label='aseg', old_fmriprep=True) 
+                                    'dseg', description='aseg', old_fmriprep=False) 
 
     name = 'nighres_{}'.format(subject)
 
