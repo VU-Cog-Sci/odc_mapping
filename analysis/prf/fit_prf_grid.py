@@ -17,16 +17,27 @@ def main(subject,
          TR=2.7,
          n_pixels=50):
 
+    dm = np.load(op.join(derivatives, 'prf/dm.npy'))
+
+    grid_searcher = PRFGridSearch(dm, distance_screen, size_cm, 1.0)
+
+    eccs = np.hstack(([0], np.geomspace(1, 30, 30)))
+    angles = np.linspace(-np.pi, np.pi, 30, endpoint=False)
+    sizes = np.geomspace(2, 30, 30)
+
+    print('making predictions')
+    grid_searcher.make_predictions(angles, eccs, sizes)
+
     if source == 'vertices':
 
         print('loading data')
         #data = np.load('/data/odc/zooi/bm.npy')
-        data = np.load('/data/odc/zooi/de.npy')
-        #data = get_vertex_data(derivatives, 
-                               #subject, 
-                               #session)
+        #data = np.load('/data/odc/zooi/de.npy')
+        data = get_vertex_data(derivatives, 
+                               subject, 
+                               session)
 
-        #data = np.mean(data, 0)
+        data = np.mean(data, 0)
         mask = (data != 0).all(0)
 
         print("loading design matrix")
