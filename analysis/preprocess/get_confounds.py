@@ -66,7 +66,7 @@ def main(sourcedata,
     get_masks.inputs.type = ['csf', 'wm']
 
 
-    wf = pe.Workflow(name='get_confounds',
+    wf = pe.Workflow(name='get_confounds_{}_{}'.format(subject, session),
                      base_dir='/workflow_folders')
     wf.connect(inputnode, 'cortex_l', get_masks, 'cortex_l')
     wf.connect(inputnode, 'cortex_r', get_masks, 'cortex_r')
