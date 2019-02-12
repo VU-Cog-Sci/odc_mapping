@@ -83,13 +83,12 @@ def main(sourcedata,
 
     bold = []
 
-    for acq in acquisition:
-        bold += (layout.get(subject=subject,
-                          session=session,
-                          run=run,
-                          acquisition=acq,
-                          suffix='bold', 
-                          return_type='file'))
+    bold = layout.get(subject=subject,
+                      session=session,
+                      run=run,
+                      acquisition=acquisition,
+                      suffix='bold', 
+                      return_type='file')
     
     print(bold)
 
@@ -128,7 +127,7 @@ def main(sourcedata,
     
     os.environ['SUBJECTS_DIR'] = op.join(derivatives, 'freesurfer')
 
-    wf = init_hires_unwarping_wf(name="unwarp_hires_{}".format(subject),
+    wf = init_hires_unwarping_wf(name="unwarp_hires_{}_{}_{}".format(subject, session, acquisition),
                               method='topup',
                               bids_layout=layout,
                               single_warpfield=False,
@@ -229,7 +228,7 @@ if __name__ == '__main__':
                         help="subject to process")
     parser.add_argument("acquisition", 
                         type=str,
-                        nargs='*',
+                        nargs='?',
                         default='.*',
                         help="subject to process")
     parser.add_argument("run", 
