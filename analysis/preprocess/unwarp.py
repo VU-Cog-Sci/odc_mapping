@@ -2,6 +2,7 @@ from spynoza.hires.workflows import init_hires_unwarping_wf
 #from bids.grabbids import BIDSLayout
 from bids import BIDSLayout
 import os
+import os.path as op
 import argparse
 import warnings
 import re
@@ -82,14 +83,14 @@ def main(sourcedata,
 
     bold = []
 
-    for acq in acquisition:
-        bold += (layout.get(subject=subject,
-                          session=session,
-                          run=run,
-                          acquisition=acq,
-                          suffix='bold', 
-                          return_type='file'))
-
+    bold = layout.get(subject=subject,
+                      session=session,
+                      run=run,
+                      acquisition=acquisition,
+                      suffix='bold', 
+                      return_type='file')
+    
+    print(bold)
 
     epi = []
     for b in bold:
@@ -99,6 +100,8 @@ def main(sourcedata,
                 break
         epi.append(fmap['epi'])
         print('Using {} as epi_op for {}'.format(fmap['epi'], b))
+
+    print(epi)
 
 
     t1w = get_derivative(derivatives,
@@ -121,9 +124,10 @@ def main(sourcedata,
                                   session=session,
                                   space='average',
                                   extension='mat')
+    
+    os.environ['SUBJECTS_DIR'] = op.join(derivatives, 'freesurfer')
 
-
-    wf = init_hires_unwarping_wf(name="unwarp_hires_{}".format(subject),
+    wf = init_hires_unwarping_wf(name="unwarp_hires_{}_{}_{}".format(subject, session, acquisition),
                               method='topup',
                               bids_layout=layout,
                               single_warpfield=False,
@@ -143,6 +147,7 @@ def main(sourcedata,
                               topup_package='afni',
                               epi_to_t1_package='fsl',
                               within_epi_reg=True,
+                              freesurfer_subject_id='sub-{}'.format(subject),
                               polish=True,
                               num_threads_ants=4)
 
@@ -150,7 +155,7 @@ def main(sourcedata,
     wf.base_dir = tmp_dir
 
     wf.run(plugin='MultiProc', 
-           plugin_args={'n_procs' : 6})
+           plugin_args={'n_procs' : 8})
 
 def get_wm_seg_from_fmriprep_wf(dtissue):
     from nipype.interfaces import fsl
@@ -223,7 +228,7 @@ if __name__ == '__main__':
                         help="subject to process")
     parser.add_argument("acquisition", 
                         type=str,
-                        nargs='*',
+                        nargs='?',
                         default='.*',
                         help="subject to process")
     parser.add_argument("run", 

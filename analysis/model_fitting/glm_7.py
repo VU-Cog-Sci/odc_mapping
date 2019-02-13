@@ -14,36 +14,37 @@ def main(sourcedata,
          subject,
          session,
          tmp_dir):
-
+    
+    print(subject, session)
     sourcedata_layout = BIDSLayout(sourcedata)
     sourcedata_df = sourcedata_layout.as_data_frame()
-    events =  sourcedata_df[(sourcedata_df['type'] == 'events') &
+    events =  sourcedata_df[(sourcedata_df['suffix'] == 'events') &
                                (sourcedata_df['subject'] == subject) &
                                (sourcedata_df['session'] == session)]
 
-    derivatives_layout = BIDSLayout(os.path.join(derivatives),)
+    derivatives_layout = BIDSLayout(os.path.join(derivatives), validate=False)
     derivatives_df = derivatives_layout.as_data_frame()
-    bold =  derivatives_df[(derivatives_df['type'] == 'preproc') &
+    bold =  derivatives_df[(derivatives_df['suffix'] == 'preproc') &
                                (derivatives_df['subject'] == subject) &
                                (derivatives_df['session'] == session)]
 
-    confounds =  derivatives_df[(derivatives_df['type'] == 'confounds') &
+    confounds =  derivatives_df[(derivatives_df['suffix'] == 'confounds') &
                                (derivatives_df['subject'] == subject) &
                                (derivatives_df['session'] == session)]
 
-    compcor =  derivatives_df[(derivatives_df['type'] == 'compcor') &
+    compcor =  derivatives_df[(derivatives_df['suffix'] == 'compcor') &
                               (derivatives_df['subject'] == subject) &
                               (derivatives_df['session'] == session)]
 
     mask = derivatives_layout.get(subject=subject,
                                   session=session,
-                                  type='mask',
+                                  suffix='mask',
                                   return_type='file')[0]
 
     df = events.merge(bold, on=['subject', 'session', 'run'],
                            suffixes=('_events','_bold'))
 
-    print(df)
+    print(confounds.shape, compcor.shape)
 
     confounds = confounds.rename(columns={'path':'confounds'})
     df = df.merge(confounds[['subject', 'session', 'run', 'confounds']])
@@ -53,7 +54,6 @@ def main(sourcedata,
 
     df.sort_values('run', inplace=True)
 
-    print(df)
     
     models = []
     for ix, row in df.iterrows():
@@ -77,7 +77,6 @@ def main(sourcedata,
         pca = decomposition.PCA(n_components=6)
         confounds_trans = pd.DataFrame(pca.fit_transform(confounds),
                                        columns=['pca_{}'.format(i) for i in range(6)])
-        print(confounds_trans.shape)
 
         print('Fitting {}'.format(row['path_bold']))
         model = FirstLevelModel(t_r=4,
