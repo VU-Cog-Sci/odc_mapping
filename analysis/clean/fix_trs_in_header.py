@@ -11,7 +11,7 @@ def main(bids_dir, subject, session):
     layout = BIDSLayout(bids_dir)
     bolds = layout.get(subject=subject, 
                        session=session,
-                       extensions='nii', type='bold')
+                       extensions='nii', suffix='bold')
 
     for bold in bolds:
         print(bold.filename)
