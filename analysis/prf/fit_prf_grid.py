@@ -4,6 +4,7 @@ import numpy as np
 from prf import PRFGridSearch
 import os.path as op
 import numpy as np
+from scipy import signal
 
 
 def main(subject,
@@ -17,13 +18,16 @@ def main(subject,
          TR=2.7,
          n_pixels=50):
 
+    print("loading design matrix")
     dm = np.load(op.join(derivatives, 'prf/dm.npy'))
+
+    #dm = signal.resample(dm, 160, axis=-1)
 
     grid_searcher = PRFGridSearch(dm, distance_screen, size_cm, 1.0)
 
-    eccs = np.hstack(([0], np.geomspace(1, 30, 30)))
+    eccs = np.hstack(([0], np.geomspace(.1, 30, 20)))
     angles = np.linspace(-np.pi, np.pi, 30, endpoint=False)
-    sizes = np.geomspace(2, 30, 30)
+    sizes = np.geomspace(.1, 30, 20)
 
     print('making predictions')
     grid_searcher.make_predictions(angles, eccs, sizes)
@@ -33,27 +37,16 @@ def main(subject,
         print('loading data')
         #data = np.load('/data/odc/zooi/bm.npy')
         #data = np.load('/data/odc/zooi/de.npy')
-        data = get_vertex_data(derivatives, 
-                               subject, 
+        data = get_vertex_data(derivatives,
+                               subject,
                                session)
 
         data = np.mean(data, 0)
         mask = (data != 0).all(0)
 
-        print("loading design matrix")
-        dm = np.load(op.join(derivatives, 'prf/dm.npy'))
-
-        grid_searcher = PRFGridSearch(dm, distance_screen, size_cm, 1.0)
-
-        eccs = np.hstack(([0], np.geomspace(1, 20, 24)))
-        angles = np.linspace(-np.pi, np.pi, 25, endpoint=False)
-        sizes = np.geomspace(2, 15, 25)
-
-        print('making predictions')
-        grid_searcher.make_predictions(angles, eccs, sizes)
-
         print('searching')
-        pars = grid_searcher.fit(data[:, mask])
+        pars = grid_searcher.fit(data[:, mask],
+                                 include_predictions=True)
 
         #return pars
 

@@ -1,2 +1,0 @@
-convert_xfm -omat /workflow_folders/reg_test/invert_EPI_N/sub-bm_ses-odc_task-checkerboard_acq-07_run-03_bold_mcf_roi_mean_av_bbreg_sub-bm_inv.mat -inverse /workflow_folders/reg_test/bbregister_N/sub-bm_ses-odc_task-checkerboard_acq-07_run-03_bold_mcf_roi_mean_av_bbreg_sub-bm.mat
-

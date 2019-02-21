@@ -1,2 +1,0 @@
-bbregister --bold --fslmat /workflow_folders/reg_test/bbregister_N/sub-bm_ses-odc_task-checkerboard_acq-07_run-03_bold_mcf_roi_mean_av_bbreg_sub-bm.mat --reg /workflow_folders/reg_test/bbregister_N/sub-bm_ses-odc_task-checkerboard_acq-07_run-03_bold_mcf_roi_mean_av_bbreg_sub-bm.dat --mov /workflow_folders/reg_test/bbregister_N/sub-bm_ses-odc_task-checkerboard_acq-07_run-03_bold_mcf_roi_mean_av.nii.gz --s sub-bm
-
