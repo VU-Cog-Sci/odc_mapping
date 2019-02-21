@@ -1,0 +1,23 @@
+[
+    [
+        "in_file",
+        [
+            "/workflow_folders/reg_test/bbregister_N/sub-bm_ses-odc_task-checkerboard_acq-07_run-03_bold_mcf_roi_mean_av_bbreg_sub-bm.mat",
+            "a11a5d7ef1c9aec7433a98294a1a999e"
+        ]
+    ],
+    [
+        "invert_xfm",
+        true
+    ],
+    [
+        "output_type",
+        "NIFTI_GZ"
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

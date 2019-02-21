@@ -1,0 +1,2 @@
+lta_convert --infsl /derivatives/manual_transformations/sub-bm/ses-odc/func/sub-bm_ses-odc_space-average_transform.mat --outlta /workflow_folders/reg_test/lta_convert/out.lta --src /workflow_folders/unwarp_hires_bm/unwarp_reg_wf_0/mean_bold2/sub-bm_ses-odc_task-checkerboard_acq-07_run-03_bold_mcf_roi_mean_av.nii.gz --trg /derivatives/masked_mp2rages/sub-bm/ses-anat/anat/sub-bm_ses-anat_space-average_desc-masked_T1w.nii.gz
+
