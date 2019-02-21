@@ -10,6 +10,7 @@ from scipy import interpolate
 from scipy import optimize
 from popeye.utilities import gradient_descent_search, error_function, coeff_of_determination
 import pandas as pd
+from joblib import Parallel, delayed
 
 class PRFRidgeModel(object):
     
@@ -179,7 +180,8 @@ class PRFGridSearch(object):
     def refine_parameters(self,
                           results,
                           correlation_method=True,
-                          verbose=1):
+                          verbose=1,
+                          n_jobs=1):
 
         results = results.copy()
         if correlation_method:
@@ -191,71 +193,101 @@ class PRFGridSearch(object):
            
                 return pred
 
-        for ix, row in results.iterrows():
-            
-            d = self.data[:, ix]
+            bounds = ((self.xs.min(), self.xs.max()),
+                      (self.ys.min(), self.ys.max()),
+                      (self.sizes.min(), self.sizes.max()))
 
-            if correlation_method:
-                print('Correlation method')
-                ballpark = row.x, row.y, row.size
-                bounds = ((self.xs.min(), self.xs.max()),
-                                  (self.ys.min(), self.ys.max()),
-                                  (self.sizes.min(), self.sizes.max()))
+            generate_prediction_func = make_zscored_prediction
 
-                d_ =  d - d.mean()
-                d_ /= d_.std()
+            ballparks = results[['x', 'y', 'size']].values
+            #ballparks = [(row.x, row.y, row.size ) for _, row in results.iterrows()
 
-                r = gradient_descent_search(d_,
-                                        error_function,
-                                        make_zscored_prediction,
-                                        ballpark,
-                                        bounds,
-                                        0)
+                         #b
 
-                results.loc[ix, 'x_opt'] = r[0][0]
-                results.loc[ix, 'y_opt'] = r[0][1]
-                results.loc[ix, 's_opt'] = r[0][2]
+            #def optimize_prf(ix, row, data, bounds, generate_prediction_func):
+                #print('Correlation method')
+
+                #ballpark = row.x, row.y, row.size
+
+                #data_ =  data - data.mean()
+                #data_ /= data_.std()
+
+                #r = gradient_descent_search(data_,
+                                        #error_function,
+                                        #generate_prediction_func,
+                                        #ballpark,
+                                        #bounds,
+                                        #4)
+
+                #row['x_opt'] = r[0][0]
+                #row['y_opt'] = r[0][1]
+                #row['s_opt'] = r[0][2]
+
+                #X = np.ones((len(data_), 2))
+                #X[:, 1] = make_zscored_prediction(*r[0])
+
+                #beta, residuals, _, _ = np.linalg.lstsq(X, data)
+
+                #row['baseline_opt'] = beta[0]
+                #row['amplitude_opt'] = beta[1]
+
+                #row['r2_opt'] = 1 - residuals / (len(data) * data.var())
+                #row['estimation method'] = 'correlation method'
+                #print("Used {} function evaluations".format(r[4]))
+                #return ix, row
+
+        else:
+            bounds = ((self.xs.min(), self.xs.max()),
+                              (self.ys.min(), self.ys.max()),
+                              (self.sizes.min(), self.sizes.max()),
+                              (0, self.data.max() * 3),
+                              (self.data.min(), self.data.max()))
+
+            generate_prediction_func = self.model_func.generate_prediction
+
+            ballparks = results[['x', 'y', 'size', 'slope', 'intercept']].values
+
+            #def optimize_prf(ix, row, data, bounds, generate_prediction_func):
+                #print('Classic method')
+                #ballpark = row.x, row.y, row.size, row.slope, row.intercept
+
+                #r = gradient_descent_search(data,
+                                        #error_function,
+                                        #generate_prediction_func,
+                                        #ballpark,
+                                        #bounds,
+                                        #4)
+                #row['x_opt'] = r[0][0]
+                #row['y_opt'] = r[0][1]
+                #row['s_opt'] = r[0][2]
+                #row['baseline_opt'] = r[0][3]
+                #row['amplitude_opt'] = r[0][4]
 
 
-                X = np.ones((len(d_), 2))
-                X[:, 1] = make_zscored_prediction(*r[0])
+                #pred = self.model_func.generate_prediction(*r[0])
 
-                beta, residuals, _, _ = np.linalg.lstsq(X, d)
+                #row['r2_opt'] = coeff_of_determination(data, pred) / 100
 
-                results.loc[ix, 'baseline_opt'] = beta[0]
-                results.loc[ix, 'amplitude_opt'] = beta[1]
+                #row['estimation method'] = 'Classic method'
 
-                results.loc[ix, 'r2_opt'] = 1 - residuals / (len(d) * d.var())
-                results.loc[ix, 'estimation method'] = 'correlation method'
+                #print("Used {} function evaluations".format(r[4]))
 
-            else:
-                print('Classic method')
-                ballpark = row.x, row.y, row.size, row.slope, row.intercept
-                bounds = ((self.xs.min(), self.xs.max()),
-                                  (self.ys.min(), self.ys.max()),
-                                  (self.sizes.min(), self.sizes.max()),
-                                  (0, self.data[:, ix].std() * 3),
-                                  (self.data_[:, ix].min(), self.data_[:, ix].max()))
+                #return ix, row
 
-                r = gradient_descent_search(d,
-                                        error_function,
-                                        self.model_func.generate_prediction,
-                                        ballpark,
-                                        bounds,
-                                        0)
-                results.loc[ix, 'x_opt'] = r[0][0]
-                results.loc[ix, 'y_opt'] = r[0][1]
-                results.loc[ix, 's_opt'] = r[0][2]
-                results.loc[ix, 'baseline_opt'] = r[0][3]
-                results.loc[ix, 'amplitude_opt'] = r[0][4]
+        #if n_jobs == 1:
+            #r = []
+            #for ix, row in results.iterrows():
+                #d = self.data[:, ix]
+                #r.append(optimize_prf(ix, row, d, bounds, generate_prediction_func))
+        #else:
+            #r = Parallel(n_jobs=n_jobs, verbose=9)(delayed(optimize_prf)(ix, row.copy(), self.data[:, ix].copy(), bounds, generate_prediction_func) for ix, row in results.iterrows())
 
-                pred = self.model_func.generate_prediction(*r[0])
+            #r = parallel(n_jobs=n_jobs, verbose=9)(delayed(gradient_descent_search)(self.data[:, ix], error_function, generate_prediction_func, ballpark, bounds) for ix, ballpark in zip(results.index, ballparks))
 
-                results.loc[ix, 'r2_opt'] = coeff_of_determination(d, pred) / 100
+        r = Parallel(n_jobs=n_jobs,
+                     verbose=9,
+                     backend='threads')(delayed(gradient_descent_search)(self.data[:, ix], error_function, generate_prediction_func, ballpark, bounds, 1) for ix, ballpark in zip(results.index, ballparks))
 
-                results.loc[ix, 'estimation method'] = 'Classic method'
 
-            print("Used {} function evaluations".format(r[4]))
-
-        return results
-
+        return r
+        #return pd.DataFrame(data=[_[1] for _ in r], index=[_[0] for _ in r])
