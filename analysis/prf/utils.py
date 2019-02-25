@@ -116,7 +116,12 @@ def get_vertex_data(derivatives,
 
     sub_dir = op.join(derivatives, 'sampled_giis/sub-{subject}/ses-{session}/func').format(**locals())
     data = []
-    for run in range(1,4):
+    runs = range(1,4)
+    if (subject == 'tk') & (session == 'prf'):
+        runs = range(1, 6)
+
+    print(runs)
+    for run in runs:
         d = []
         for hemi in ['lh', 'rh']:
             d.append(surface.load_surf_data(op.join(sub_dir, 'sub-{subject}_ses-{session}_task-prf_acq-10_run-{run:02d}_bold.{hemi}.gii'.format(**locals()))).T)
