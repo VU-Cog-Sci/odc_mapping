@@ -120,7 +120,6 @@ def get_vertex_data(derivatives,
     if (subject == 'tk') & (session == 'prf'):
         runs = range(1, 6)
 
-    print(runs)
     for run in runs:
         d = []
         for hemi in ['lh', 'rh']:
