@@ -12,7 +12,7 @@ from popeye.utilities import gradient_descent_search, error_function, coeff_of_d
 import pandas as pd
 #from joblib import Parallel, delayed
 import sharedmem
-import progressbar
+from tqdm import tqdm
 
 class PRFGridSearch(object):
     
@@ -104,6 +104,12 @@ class PRFGridSearch(object):
                  ix,
                  row) for ix, row in results.iterrows()]
 
+        pb = tqdm(total=len(results))
+
+        def reduce(i, r):
+            pb.update()
+            return i, r
+
         if correlation_method:
 
             with sharedmem.MapReduce(np=n_jobs) as pool:
@@ -121,6 +127,7 @@ class PRFGridSearch(object):
                     return pred
 
                 def optimize_parameters(args):
+
                     data, ix, row = args
 
                     data_ = (data - data.mean()) / data.std()
@@ -151,7 +158,7 @@ class PRFGridSearch(object):
 
                     return ix, row
 
-                results = pool.map(optimize_parameters, args)
+                results = pool.map(optimize_parameters, args, reduce=reduce)
 
         else:
 
@@ -187,7 +194,7 @@ class PRFGridSearch(object):
 
                     return ix, row
 
-                results = pool.map(optimize_parameters, args)
+                results = pool.map(optimize_parameters, args, reduce=reduce)
 
         return pd.DataFrame(data=[e[1] for e in results],
                             index=[e[0] for e in results])
