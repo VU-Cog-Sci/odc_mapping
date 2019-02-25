@@ -12,6 +12,7 @@ from popeye.utilities import gradient_descent_search, error_function, coeff_of_d
 import pandas as pd
 #from joblib import Parallel, delayed
 import sharedmem
+import progressbar
 
 class PRFGridSearch(object):
     
@@ -76,13 +77,20 @@ class PRFGridSearch(object):
 
         if include_intercept_slope or include_predictions:
             print('Find intercept and slope')
-            results['intercept'] = self.data.mean(0)
-            results['slope'] = self.data.std(0) / self.predictions[:, self.best_pars_ix].std(0)
 
+            X = np.ones((self.data.shape[0], 2))
+            betas = np.ones((2, self.data.shape[1]))
+            for ix in np.unique(self.best_pars_ix):
+                data_ix = self.best_pars_ix == ix
+                X[:, 1] = self.predictions[:, ix]
+                betas[:, data_ix], _, _, _ = np.linalg.lstsq(X, self.data[:, data_ix])
+
+            results['baseline'] = betas[0, :]
+            results['amplitude'] = betas[1, :]
 
         if include_predictions:
             print('Make best fitting predictions')
-            self.predictions = results['intercept'] + results['slope'] * self.predictions_[:, self.best_pars_ix]
+            self.predictions = results['baseline'] + results['amplitude'] * self.predictions_[:, self.best_pars_ix]
 
         return pd.DataFrame(results)
 
@@ -157,7 +165,7 @@ class PRFGridSearch(object):
                 def optimize_parameters(args):
                     data, ix, row = args
 
-                    ballpark = row.x, row.y, row.size, row.slope, row.intercept
+                    ballpark = row.x, row.y, row.size, row.amplitude, row.baseline
 
                     r = gradient_descent_search(data,
                                                 error_function,
@@ -237,7 +245,6 @@ class PRFRidgeModel(object):
 
         r[np.isnan(r)] = 0
     
-        
         self.predictions = np.array(self.predictions)
         self.parameters = np.array(self.parameters)
             
