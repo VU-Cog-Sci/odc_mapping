@@ -13,6 +13,7 @@ def main(bids_dir,
     bolds = layout.get(subject=subject, 
                        session=session,
                        extensions='nii', 
+                       datatype='func',
                        suffix='bold')
     
     for bold in bolds:
