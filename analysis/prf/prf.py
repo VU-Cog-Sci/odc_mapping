@@ -97,7 +97,8 @@ class PRFGridSearch(object):
     def refine_parameters(self,
                           results,
                           correlation_method=True,
-                          verbose=1,
+                          r2_thr=0.0,
+                          verbose=0,
                           n_jobs=1):
 
         args = [(self.data[:, ix],
@@ -109,6 +110,19 @@ class PRFGridSearch(object):
         def reduce(i, r):
             pb.update()
             return i, r
+
+        def return_grid_results(row):
+            row['x_opt'] = row['x']
+            row['y_opt'] = row['y']
+            row['size_opt'] = row['size']
+
+            row['baseline_opt'] = row['baseline']
+            row['amplitude_opt'] = row['amplitude']
+
+            row['r2_opt'] = row['r2']
+            row['estimation_method'] = 'Grid'
+
+            return row
 
         if correlation_method:
 
@@ -126,35 +140,39 @@ class PRFGridSearch(object):
                
                     return pred
 
+
                 def optimize_parameters(args):
 
                     data, ix, row = args
 
-                    data_ = (data - data.mean()) / data.std()
+                    if row['r2'] > r2_thr:
+                        return ix, return_grid_results(row)
 
-                    ballpark = row.x, row.y, row.size
+                    else:
+                        data_ = (data - data.mean()) / data.std()
 
-                    r = gradient_descent_search(data,
-                                                error_function,
-                                                make_zscored_prediction,
-                                                ballpark,
-                                                bounds,
-                                                verbose)
+                        ballpark = row.x, row.y, row.size
+                        r = gradient_descent_search(data,
+                                                    error_function,
+                                                    make_zscored_prediction,
+                                                    ballpark,
+                                                    bounds,
+                                                    verbose)
 
-                    row['x_opt'] = r[0][0]
-                    row['y_opt'] = r[0][1]
-                    row['s_opt'] = r[0][2]
+                        row['x_opt'] = r[0][0]
+                        row['y_opt'] = r[0][1]
+                        row['size_opt'] = r[0][2]
 
-                    X = np.ones((len(data_), 2))
-                    X[:, 1] = make_zscored_prediction(*r[0], normalize=False)
+                        X = np.ones((len(data_), 2))
+                        X[:, 1] = make_zscored_prediction(*r[0], normalize=False)
 
-                    beta, residuals, _, _ = np.linalg.lstsq(X, data)
+                        beta, residuals, _, _ = np.linalg.lstsq(X, data)
 
-                    row['baseline_opt'] = beta[0]
-                    row['amplitude_opt'] = beta[1]
+                        row['baseline_opt'] = beta[0]
+                        row['amplitude_opt'] = beta[1]
 
-                    row['r2_opt'] = coeff_of_determination(data, X.dot(beta)) / 100
-                    row['estimation_method'] = 'Correlation method'
+                        row['r2_opt'] = coeff_of_determination(data, X.dot(beta)) / 100
+                        row['estimation_method'] = 'Correlation method'
 
                     return ix, row
 
@@ -172,32 +190,42 @@ class PRFGridSearch(object):
                 def optimize_parameters(args):
                     data, ix, row = args
 
-                    ballpark = row.x, row.y, row.size, row.amplitude, row.baseline
+                    if row['r2'] > r2_thr:
+                        return ix, return_grid_results(row)
 
-                    r = gradient_descent_search(data,
-                                                error_function,
-                                                self.model_func.generate_prediction,
-                                                ballpark,
-                                                bounds,
-                                                verbose)
+                    else:
+                        ballpark = row.x, row.y, row.size, row.amplitude, row.baseline
 
-                    row['x_opt'] = r[0][0]
-                    row['y_opt'] = r[0][1]
-                    row['s_opt'] = r[0][2]
-                    row['amplitude_opt'] = r[0][3]
-                    row['baseline_opt'] = r[0][4]
+                        r = gradient_descent_search(data,
+                                                    error_function,
+                                                    self.model_func.generate_prediction,
+                                                    ballpark,
+                                                    bounds,
+                                                    verbose)
 
-                    pred = self.model_func.generate_prediction(*r[0])
-                    row['r2_opt'] = coeff_of_determination(data, pred) / 100
+                        row['x_opt'] = r[0][0]
+                        row['y_opt'] = r[0][1]
+                        row['size_opt'] = r[0][2]
+                        row['amplitude_opt'] = r[0][3]
+                        row['baseline_opt'] = r[0][4]
 
-                    row['estimation_method'] = 'Traditional method'
+                        pred = self.model_func.generate_prediction(*r[0])
+                        row['r2_opt'] = coeff_of_determination(data, pred) / 100
+
+                        row['estimation_method'] = 'Traditional method'
 
                     return ix, row
 
                 results = pool.map(optimize_parameters, args, reduce=reduce)
 
-        return pd.DataFrame(data=[e[1] for e in results],
+        results = pd.DataFrame(data=[e[1] for e in results],
                             index=[e[0] for e in results])
+
+        results['ecc_opt'] = np.sqrt(results['x_opt'] **2 + results['y_opt']**2)
+        results['angle_opt'] = np.arctan2(results['x_opt'], results['y_opt'])
+
+        return results
+
 class PRFRidgeModel(object):
     
     def __init__(self, 
