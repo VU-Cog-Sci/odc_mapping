@@ -10,99 +10,9 @@ from scipy import interpolate
 from scipy import optimize
 from popeye.utilities import gradient_descent_search, error_function, coeff_of_determination
 import pandas as pd
-from joblib import Parallel, delayed
-
-class PRFRidgeModel(object):
-    
-    def __init__(self, 
-                 bold_dm, 
-                 data, 
-                 window_length=51, 
-                 polyorder=3):
-        
-        self.bold_dm = bold_dm
-        self.data = np.array(data)
-        self.n_runs, self.n_timepoints, self.n_vertices = self.data.shape
-        self.bold_dm = self.bold_dm[:self.n_timepoints]
-
-
-        self.mask = self.data.mean(0).sum(0) != 0
-        
-        self.loo = LeaveOneOut()
-        
-        
-        if window_length is not None:
-            if window_length % 2 == 0:
-                window_length += 1
-                
-            self.bold_dm -= savgol_filter(self.bold_dm, window_length, polyorder, axis=0)
-        
-        self.X_ = self.bold_dm.reshape(self.n_timepoints, -1)
-
-    def fit(self, alpha=1.0):
-        
-        ridge = linear_model.Ridge(alpha=alpha)
-        
-        self.parameters = []
-        self.predictions = []
-        
-        r = np.zeros((self.n_runs, self.n_vertices))
-        
-        for i, (train, test) in enumerate(self.loo.split(range(self.n_runs))):
-            train_data = np.mean(self.data[train], 0)            
-            test_data = np.mean(self.data[test], 0)
-
-            x_ = self.X_
-            
-            
-            ridge.fit(self.X_, train_data[:, self.mask])
-            predictions = ridge.predict(self.X_)
-            self.predictions.append(predictions)
-
-            self.parameters.append(ridge.coef_)
-            
-            predictions_ = predictions - predictions.mean(0)
-            test_data_ = test_data - test_data.mean(0)
-            
-            n = self.n_timepoints
-            r[i, self.mask] = (np.sum(test_data_[:, self.mask]*predictions_, 0)/n) / (np.std(test_data[:, self.mask], 0)*np.std(predictions_, 0))
-
-        r[np.isnan(r)] = 0
-    
-        
-        self.predictions = np.array(self.predictions)
-        self.parameters = np.array(self.parameters)
-            
-        return r**2
-
-class PRFTikhonovModel(PRFRidgeModel):
-
-    def __init__(self, bold_dm, data, rbf_kernel_sigma=None, window_length=51, polyorder=3):
-
-        super(PRFTikhonovModel, self).__init__(bold_dm,
-                                               data,
-                                               window_length,
-                                               polyorder)
-
-        self.rbf_kernel_sigma = rbf_kernel_sigma
-
-        resolution = bold_dm.shape[-2:]
-
-        x, y = np.meshgrid(np.arange(0, resolution[0]), np.arange(0, resolution[0]))
-        xy = np.vstack((x.ravel(), y.ravel())).T
-        self.distances = rbf_kernel(xy, xy, 1./rbf_kernel_sigma)
-        self.C_ = self.distances
-        self.A = bold_dm.reshape(bold_dm.shape[0], -1).dot(self.C_)
-        self.X_ = self.A
-
-    def fit(self):
-
-        r2 = super(PRFTikhonovModel, self).fit()
-
-        self.parameters = [self.C_.dot(p.T) for p in self.parameters]
-
-        return r2
-
+#from joblib import Parallel, delayed
+import sharedmem
+from tqdm import tqdm
 
 class PRFGridSearch(object):
     
@@ -167,13 +77,20 @@ class PRFGridSearch(object):
 
         if include_intercept_slope or include_predictions:
             print('Find intercept and slope')
-            results['intercept'] = self.data.mean(0)
-            results['slope'] = self.data.std(0) / self.predictions[:, self.best_pars_ix].std(0)
 
+            X = np.ones((self.data.shape[0], 2))
+            betas = np.ones((2, self.data.shape[1]))
+            for ix in np.unique(self.best_pars_ix):
+                data_ix = self.best_pars_ix == ix
+                X[:, 1] = self.predictions[:, ix]
+                betas[:, data_ix], _, _, _ = np.linalg.lstsq(X, self.data[:, data_ix])
+
+            results['baseline'] = betas[0, :]
+            results['amplitude'] = betas[1, :]
 
         if include_predictions:
             print('Make best fitting predictions')
-            self.predictions = results['intercept'] + results['slope'] * self.predictions_[:, self.best_pars_ix]
+            self.predictions = results['baseline'] + results['amplitude'] * self.predictions_[:, self.best_pars_ix]
 
         return pd.DataFrame(results)
 
@@ -183,111 +100,189 @@ class PRFGridSearch(object):
                           verbose=1,
                           n_jobs=1):
 
-        results = results.copy()
+        args = [(self.data[:, ix],
+                 ix,
+                 row) for ix, row in results.iterrows()]
+
+        pb = tqdm(total=len(results))
+
+        def reduce(i, r):
+            pb.update()
+            return i, r
+
         if correlation_method:
-            def make_zscored_prediction(x, y, size):
-           
-                pred = self.model_func.generate_prediction(x, y, size, 1, 0)
-                pred -= pred.mean()
-                pred /= pred.std()
-           
-                return pred
 
-            bounds = ((self.xs.min(), self.xs.max()),
-                      (self.ys.min(), self.ys.max()),
-                      (self.sizes.min(), self.sizes.max()))
+            with sharedmem.MapReduce(np=n_jobs) as pool:
+                bounds = ((self.xs.min(), self.xs.max()),
+                          (self.ys.min(), self.ys.max()),
+                          (self.sizes.min(), self.sizes.max()))
 
-            generate_prediction_func = make_zscored_prediction
+                def make_zscored_prediction(x, y, size, normalize=True):
+               
+                    pred = self.model_func.generate_prediction(x, y, size, 1, 0)
 
-            ballparks = results[['x', 'y', 'size']].values
-            #ballparks = [(row.x, row.y, row.size ) for _, row in results.iterrows()
+                    if normalize:
+                        pred /= pred.std()
+               
+                    return pred
 
-                         #b
+                def optimize_parameters(args):
 
-            #def optimize_prf(ix, row, data, bounds, generate_prediction_func):
-                #print('Correlation method')
+                    data, ix, row = args
 
-                #ballpark = row.x, row.y, row.size
+                    data_ = (data - data.mean()) / data.std()
 
-                #data_ =  data - data.mean()
-                #data_ /= data_.std()
+                    ballpark = row.x, row.y, row.size
 
-                #r = gradient_descent_search(data_,
-                                        #error_function,
-                                        #generate_prediction_func,
-                                        #ballpark,
-                                        #bounds,
-                                        #4)
+                    r = gradient_descent_search(data,
+                                                error_function,
+                                                make_zscored_prediction,
+                                                ballpark,
+                                                bounds,
+                                                verbose)
 
-                #row['x_opt'] = r[0][0]
-                #row['y_opt'] = r[0][1]
-                #row['s_opt'] = r[0][2]
+                    row['x_opt'] = r[0][0]
+                    row['y_opt'] = r[0][1]
+                    row['s_opt'] = r[0][2]
 
-                #X = np.ones((len(data_), 2))
-                #X[:, 1] = make_zscored_prediction(*r[0])
+                    X = np.ones((len(data_), 2))
+                    X[:, 1] = make_zscored_prediction(*r[0], normalize=False)
 
-                #beta, residuals, _, _ = np.linalg.lstsq(X, data)
+                    beta, residuals, _, _ = np.linalg.lstsq(X, data)
 
-                #row['baseline_opt'] = beta[0]
-                #row['amplitude_opt'] = beta[1]
+                    row['baseline_opt'] = beta[0]
+                    row['amplitude_opt'] = beta[1]
 
-                #row['r2_opt'] = 1 - residuals / (len(data) * data.var())
-                #row['estimation method'] = 'correlation method'
-                #print("Used {} function evaluations".format(r[4]))
-                #return ix, row
+                    row['r2_opt'] = coeff_of_determination(data, X.dot(beta)) / 100
+                    row['estimation_method'] = 'Correlation method'
+
+                    return ix, row
+
+                results = pool.map(optimize_parameters, args, reduce=reduce)
 
         else:
-            bounds = ((self.xs.min(), self.xs.max()),
-                              (self.ys.min(), self.ys.max()),
-                              (self.sizes.min(), self.sizes.max()),
-                              (0, self.data.max() * 3),
-                              (self.data.min(), self.data.max()))
 
-            generate_prediction_func = self.model_func.generate_prediction
+            with sharedmem.MapReduce(np=n_jobs) as pool:
+                bounds = ((self.xs.min(), self.xs.max()),
+                          (self.ys.min(), self.ys.max()),
+                          (self.sizes.min(), self.sizes.max()),
+                          (-self.data.max() * 3, self.data.max() * 3),
+                          (self.data.min(), self.data.max()))
 
-            ballparks = results[['x', 'y', 'size', 'slope', 'intercept']].values
+                def optimize_parameters(args):
+                    data, ix, row = args
 
-            #def optimize_prf(ix, row, data, bounds, generate_prediction_func):
-                #print('Classic method')
-                #ballpark = row.x, row.y, row.size, row.slope, row.intercept
+                    ballpark = row.x, row.y, row.size, row.amplitude, row.baseline
 
-                #r = gradient_descent_search(data,
-                                        #error_function,
-                                        #generate_prediction_func,
-                                        #ballpark,
-                                        #bounds,
-                                        #4)
-                #row['x_opt'] = r[0][0]
-                #row['y_opt'] = r[0][1]
-                #row['s_opt'] = r[0][2]
-                #row['baseline_opt'] = r[0][3]
-                #row['amplitude_opt'] = r[0][4]
+                    r = gradient_descent_search(data,
+                                                error_function,
+                                                self.model_func.generate_prediction,
+                                                ballpark,
+                                                bounds,
+                                                verbose)
 
+                    row['x_opt'] = r[0][0]
+                    row['y_opt'] = r[0][1]
+                    row['s_opt'] = r[0][2]
+                    row['amplitude_opt'] = r[0][3]
+                    row['baseline_opt'] = r[0][4]
 
-                #pred = self.model_func.generate_prediction(*r[0])
+                    pred = self.model_func.generate_prediction(*r[0])
+                    row['r2_opt'] = coeff_of_determination(data, pred) / 100
 
-                #row['r2_opt'] = coeff_of_determination(data, pred) / 100
+                    row['estimation_method'] = 'Traditional method'
 
-                #row['estimation method'] = 'Classic method'
+                    return ix, row
 
-                #print("Used {} function evaluations".format(r[4]))
+                results = pool.map(optimize_parameters, args, reduce=reduce)
 
-                #return ix, row
-
-        #if n_jobs == 1:
-            #r = []
-            #for ix, row in results.iterrows():
-                #d = self.data[:, ix]
-                #r.append(optimize_prf(ix, row, d, bounds, generate_prediction_func))
-        #else:
-            #r = Parallel(n_jobs=n_jobs, verbose=9)(delayed(optimize_prf)(ix, row.copy(), self.data[:, ix].copy(), bounds, generate_prediction_func) for ix, row in results.iterrows())
-
-            #r = parallel(n_jobs=n_jobs, verbose=9)(delayed(gradient_descent_search)(self.data[:, ix], error_function, generate_prediction_func, ballpark, bounds) for ix, ballpark in zip(results.index, ballparks))
-
-        r = Parallel(n_jobs=n_jobs,
-                     verbose=9,
-                     backend='threads')(delayed(gradient_descent_search)(self.data[:, ix], error_function, generate_prediction_func, ballpark, bounds, 1) for ix, ballpark in zip(results.index, ballparks))
+        return pd.DataFrame(data=[e[1] for e in results],
+                            index=[e[0] for e in results])
+class PRFRidgeModel(object):
+    
+    def __init__(self, 
+                 bold_dm, 
+                 data, 
+                 window_length=51,
+                 polyorder=3):
+        
+        self.bold_dm = bold_dm
+        self.data = np.array(data)
+        self.n_runs, self.n_timepoints, self.n_vertices = self.data.shape
+        self.bold_dm = self.bold_dm[:self.n_timepoints]
 
 
-        return r
-        #return pd.DataFrame(data=[_[1] for _ in r], index=[_[0] for _ in r])
+        self.mask = self.data.mean(0).sum(0) != 0
+        
+        self.loo = LeaveOneOut()
+        
+        
+        if window_length is not None:
+            if window_length % 2 == 0:
+                window_length += 1
+                
+            self.bold_dm -= savgol_filter(self.bold_dm, window_length, polyorder, axis=0)
+        
+        self.X_ = self.bold_dm.reshape(self.n_timepoints, -1)
+
+    def fit(self, alpha=1.0):
+        
+        ridge = linear_model.Ridge(alpha=alpha)
+        
+        self.parameters = []
+        self.predictions = []
+        
+        r = np.zeros((self.n_runs, self.n_vertices))
+        
+        for i, (train, test) in enumerate(self.loo.split(range(self.n_runs))):
+            train_data = np.mean(self.data[train], 0)            
+            test_data = np.mean(self.data[test], 0)
+
+            ridge.fit(self.X_, train_data[:, self.mask])
+            predictions = ridge.predict(self.X_)
+            self.predictions.append(predictions)
+
+            self.parameters.append(ridge.coef_)
+            
+            predictions_ = predictions - predictions.mean(0)
+            test_data_ = test_data - test_data.mean(0)
+            
+            n = self.n_timepoints
+            r[i, self.mask] = (np.sum(test_data_[:, self.mask]*predictions_, 0)/n) / (np.std(test_data[:, self.mask], 0)*np.std(predictions_, 0))
+
+        r[np.isnan(r)] = 0
+    
+        self.predictions = np.array(self.predictions)
+        self.parameters = np.array(self.parameters)
+            
+        return r**2
+
+class PRFTikhonovModel(PRFRidgeModel):
+
+    def __init__(self, bold_dm, data, rbf_kernel_sigma=None, window_length=51, polyorder=3):
+
+        super(PRFTikhonovModel, self).__init__(bold_dm,
+                                               data,
+                                               window_length,
+                                               polyorder)
+
+        self.rbf_kernel_sigma = rbf_kernel_sigma
+
+        resolution = bold_dm.shape[-2:]
+
+        x, y = np.meshgrid(np.arange(0, resolution[0]), np.arange(0, resolution[0]))
+        xy = np.vstack((x.ravel(), y.ravel())).T
+        self.distances = rbf_kernel(xy, xy, 1./rbf_kernel_sigma)
+        self.C_ = self.distances
+        self.A = bold_dm.reshape(bold_dm.shape[0], -1).dot(self.C_)
+        self.X_ = self.A
+
+    def fit(self):
+
+        r2 = super(PRFTikhonovModel, self).fit()
+
+        self.parameters = [self.C_.dot(p.T) for p in self.parameters]
+
+        return r2
+
+
