@@ -26,14 +26,20 @@ def main(subject,
 
     dm = signal.resample(dm, 118, axis=-1)
 
+    print("Size design matrix: {}".format(dm.shape))
+
     grid_searcher = PRFGridSearch(dm, distance_screen, size_cm, TR)
 
     eccs = np.hstack(([0], np.geomspace(.25, 20, 25)))
     angles = np.linspace(-np.pi, np.pi, 32, endpoint=False)
     sizes = np.geomspace(.25, 15, 25)
 
+    #eccs = np.hstack(([0], np.geomspace(.25, 20, 10)))
+    #angles = np.linspace(-np.pi, np.pi, 16, endpoint=False)
+    #sizes = np.geomspace(.25, 15, 10)
+
     print('making predictions')
-    grid_searcher.make_predictions(angles, eccs, sizes)
+    grid_searcher.make_predictions(angles, eccs, sizes, n_jobs=n_jobs)
 
     if source == 'vertices':
 
@@ -41,6 +47,8 @@ def main(subject,
         data = get_vertex_data(derivatives,
                                subject,
                                session)
+
+        #data = np.load('/home/shared/2018/visual/7T_BR/ODC/zooi/tr_prf.npy')
 
         print('Found {} runs'.format(data.shape[0]))
 
@@ -50,6 +58,7 @@ def main(subject,
         print('searching')
         pars = grid_searcher.fit(data[:, mask],
                                  include_predictions=True)
+                                 
 
         r2 = np.zeros(data.shape[1])
         size = np.zeros(data.shape[1])
@@ -70,24 +79,25 @@ def main(subject,
                  angle=angle,
                  ecc=ecc)
 
-        optim_pars = grid_searcher.refine_parameters(pars[pars['r2'] > r2_threshold],
+        optim_pars = grid_searcher.refine_parameters(pars,
+                                                     r2_threshold=r2_threshold,
                                                      n_jobs=n_jobs)
                                                      
 
-        r2[optim_pars.index] = optim_pars['r2_opt']
-        size[optim_pars.index] = optim_pars['size_opt']
-        angle[optim_pars.index] = optim_pars['angle_opt']
-        ecc[optim_pars.index] = optim_pars['ecc_opt']
+        r2[mask] = optim_pars['r2_opt']
+        size[mask] = optim_pars['size_opt']
+        angle[mask] = optim_pars['angle_opt']
+        ecc[mask] = optim_pars['ecc_opt']
+        method = np.zeros_like(ecc, dtype=str)
+        method[mask] = optim_pars['estimation_method']
 
 
         np.savez(op.join(out_dir, 'sub-{subject}_desc-{description}_prf_optim'.format(**locals())), 
                  r2=r2,
                  size=size,
                  angle=angle,
-                 ecc=ecc)
-
-
- 
+                 ecc=ecc,
+                 method=method)
 
 if __name__ == '__main__':
 

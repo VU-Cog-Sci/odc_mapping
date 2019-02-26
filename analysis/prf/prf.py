@@ -31,16 +31,33 @@ class PRFGridSearch(object):
         self.predictions = None
         
         
-    def make_predictions(self, angles, eccentricities, sizes):
+    def make_predictions(self, angles, eccentricities, sizes, n_jobs=4):
         self.angles, self.eccentricities, self.sizes, = np.meshgrid(angles, eccentricities, sizes)        
-        self.predictions = np.zeros(list(self.angles.shape) + [self.stimulus.run_length])
-        self.predictions = self.predictions.reshape(-1, self.predictions.shape[-1]).T
+        #self.predictions = np.zeros(list(self.angles.shape) + [self.stimulus.run_length])
+        #self.predictions = self.predictions.reshape(-1, self.predictions.shape[-1]).T
 
         self.xs = np.cos(self.angles) * self.eccentricities
         self.ys = np.sin(self.angles) * self.eccentricities
+
+        print(self.xs.shape)
+        print(len(self.xs.ravel()))
         
-        for i, (x, y, s) in enumerate(zip(self.xs.ravel(), self.ys.ravel(), self.sizes.ravel())):
-            self.predictions[:, i] = self.model_func.generate_prediction(x, y, s, 1, 0)        
+        with sharedmem.MapReduce(np=n_jobs) as pool:
+
+            def make_predictions(args):
+                x, y, s = args
+                return self.model_func.generate_prediction(x, y, s, 1, 0)        
+
+
+            pb = tqdm(total=self.angles.size)
+
+            def reduce(r):
+                pb.update()
+                return r
+
+            args = list(zip(self.xs.ravel(), self.ys.ravel(), self.sizes.ravel()))
+            self.predictions = np.array(pool.map(make_predictions, args, reduce=reduce)).T
+
         
     def fit(self, data,
             include_intercept_slope=False,
@@ -97,15 +114,16 @@ class PRFGridSearch(object):
     def refine_parameters(self,
                           results,
                           correlation_method=True,
-                          r2_thr=0.0,
+                          r2_threshold=0.0,
                           verbose=0,
                           n_jobs=1):
 
+        print('Only refining parameters for time series with R2 > {}'.format(r2_threshold))
         args = [(self.data[:, ix],
                  ix,
-                 row) for ix, row in results.iterrows()]
+                 row) for ix, row in results[results.r2 > r2_threshold].iterrows()]
 
-        pb = tqdm(total=len(results))
+        pb = tqdm(total=len(args))
 
         def reduce(i, r):
             pb.update()
@@ -145,38 +163,38 @@ class PRFGridSearch(object):
 
                     data, ix, row = args
 
-                    if row['r2'] > r2_thr:
-                        return ix, return_grid_results(row)
+                    #if row['r2'] < r2_thr:
+                        #return ix, return_grid_results(row)
 
-                    else:
-                        data_ = (data - data.mean()) / data.std()
+                    #else:
+                    data_ = (data - data.mean()) / data.std()
 
-                        ballpark = row.x, row.y, row.size
-                        r = gradient_descent_search(data,
-                                                    error_function,
-                                                    make_zscored_prediction,
-                                                    ballpark,
-                                                    bounds,
-                                                    verbose)
+                    ballpark = row.x, row.y, row.size
+                    r = gradient_descent_search(data,
+                                                error_function,
+                                                make_zscored_prediction,
+                                                ballpark,
+                                                bounds,
+                                                verbose)
 
-                        row['x_opt'] = r[0][0]
-                        row['y_opt'] = r[0][1]
-                        row['size_opt'] = r[0][2]
+                    row['x_opt'] = r[0][0]
+                    row['y_opt'] = r[0][1]
+                    row['size_opt'] = r[0][2]
 
-                        X = np.ones((len(data_), 2))
-                        X[:, 1] = make_zscored_prediction(*r[0], normalize=False)
+                    X = np.ones((len(data_), 2))
+                    X[:, 1] = make_zscored_prediction(*r[0], normalize=False)
 
-                        beta, residuals, _, _ = np.linalg.lstsq(X, data)
+                    beta, residuals, _, _ = np.linalg.lstsq(X, data)
 
-                        row['baseline_opt'] = beta[0]
-                        row['amplitude_opt'] = beta[1]
+                    row['baseline_opt'] = beta[0]
+                    row['amplitude_opt'] = beta[1]
 
-                        row['r2_opt'] = coeff_of_determination(data, X.dot(beta)) / 100
-                        row['estimation_method'] = 'Correlation method'
+                    row['r2_opt'] = coeff_of_determination(data, X.dot(beta)) / 100
+                    row['estimation_method'] = 'Correlation method'
 
                     return ix, row
 
-                results = pool.map(optimize_parameters, args, reduce=reduce)
+                optim_results = pool.map(optimize_parameters, args, reduce=reduce)
 
         else:
 
@@ -190,36 +208,38 @@ class PRFGridSearch(object):
                 def optimize_parameters(args):
                     data, ix, row = args
 
-                    if row['r2'] > r2_thr:
-                        return ix, return_grid_results(row)
+                    #if row['r2'] < r2_thr:
+                        #return ix, return_grid_results(row)
 
-                    else:
-                        ballpark = row.x, row.y, row.size, row.amplitude, row.baseline
+                    #else:
+                    ballpark = row.x, row.y, row.size, row.amplitude, row.baseline
 
-                        r = gradient_descent_search(data,
-                                                    error_function,
-                                                    self.model_func.generate_prediction,
-                                                    ballpark,
-                                                    bounds,
-                                                    verbose)
+                    r = gradient_descent_search(data,
+                                                error_function,
+                                                self.model_func.generate_prediction,
+                                                ballpark,
+                                                bounds,
+                                                verbose)
 
-                        row['x_opt'] = r[0][0]
-                        row['y_opt'] = r[0][1]
-                        row['size_opt'] = r[0][2]
-                        row['amplitude_opt'] = r[0][3]
-                        row['baseline_opt'] = r[0][4]
+                    row['x_opt'] = r[0][0]
+                    row['y_opt'] = r[0][1]
+                    row['size_opt'] = r[0][2]
+                    row['amplitude_opt'] = r[0][3]
+                    row['baseline_opt'] = r[0][4]
 
-                        pred = self.model_func.generate_prediction(*r[0])
-                        row['r2_opt'] = coeff_of_determination(data, pred) / 100
+                    pred = self.model_func.generate_prediction(*r[0])
+                    row['r2_opt'] = coeff_of_determination(data, pred) / 100
 
-                        row['estimation_method'] = 'Traditional method'
+                    row['estimation_method'] = 'Traditional method'
 
                     return ix, row
 
-                results = pool.map(optimize_parameters, args, reduce=reduce)
+                optim_results = pool.map(optimize_parameters, args, reduce=reduce)
 
-        results = pd.DataFrame(data=[e[1] for e in results],
-                            index=[e[0] for e in results])
+        optim_results = pd.DataFrame(data=[e[1] for e in optim_results],
+                            index=[e[0] for e in optim_results])
+
+        results = optim_results.combine_first(results)
 
         results['ecc_opt'] = np.sqrt(results['x_opt'] **2 + results['y_opt']**2)
         results['angle_opt'] = np.arctan2(results['x_opt'], results['y_opt'])
