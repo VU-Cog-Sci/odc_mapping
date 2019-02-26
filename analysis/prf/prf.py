@@ -242,7 +242,7 @@ class PRFGridSearch(object):
         results = optim_results.combine_first(results)
 
         results['ecc_opt'] = np.sqrt(results['x_opt'] **2 + results['y_opt']**2)
-        results['angle_opt'] = np.arctan2(results['x_opt'], results['y_opt'])
+        results['angle_opt'] = np.arctan2(results['y_opt'], results['x_opt'])
 
         return results
 
