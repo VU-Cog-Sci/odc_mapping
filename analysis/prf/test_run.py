@@ -6,7 +6,7 @@ import os.path as op
 import numpy as np
 from scipy import signal
 
-derivatives = '/data/odc/derivatives'
+derivatives = '/home/shared/2018/visual/7T_BR/ODC'
 subject = 'ms'
 session = 'prf'
 
