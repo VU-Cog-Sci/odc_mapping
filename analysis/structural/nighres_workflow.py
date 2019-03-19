@@ -1,7 +1,7 @@
 from utils import get_derivative, binary_closing, largest_component
 from nighres_interfaces import (MP2RAGESkullStrip, MP2RAGEDuraEstimation, 
                                 MGDMSegmentation, ExtractBrainRegion,
-                                CRUISECortexExtraction)
+                                CRUISECortexExtraction, VolumetricLayering)
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import argparse
@@ -30,7 +30,7 @@ def main(sourcedata,
     manual_gm_mask = get_derivative(derivatives, 'manual_segmentation',
                                     'anat', subject, 'mask',
                                      description='gm', session='anat',
-                                     check_exists=False, space='average')
+                                     check_exists=True, space='average')
     manual_wm_mask = get_derivative(derivatives, 'manual_segmentation',
                                     'anat', subject, 'mask',
                                      description='wm', session='anat',
@@ -165,7 +165,7 @@ def reorient_to_image(source_img, target_img, interpolation='nearest'):
 
     
 def init_combine_segmentations_wf(name='combine_segmenetations_wf',
-                                 manual_weight=5):
+                                 manual_weight=1):
 
     wf = pe.Workflow(name=name)
 
@@ -383,6 +383,14 @@ def init_nighres_wf(name='nighres',
     wf.connect(largest_component_init_image, 'output_image', close_init_image, 'input_image')
     wf.connect(close_init_image, 'output_image', cruise, 'init_image')
 
+    volumetric_layerer = pe.MapNode(VolumetricLayering(n_layers=10),
+                                    iterfield=['inner_levelset',
+                                               'outer_levelset'],
+                                    name='volumetric_layerer')
+
+    wf.connect(cruise, 'gwb', volumetric_layerer, 'inner_levelset')
+    wf.connect(cruise, 'cgb', volumetric_layerer, 'outer_levelset')
+
     ds_wf = init_nighres_ds_wf(derivatives=derivatives)
     wf.connect([(cruise, ds_wf,
                 [('cortex', 'inputnode.cortex'),
@@ -392,7 +400,11 @@ def init_nighres_wf(name='nighres',
                (inputnode, ds_wf,
                 [('t1w', 'inputnode.t1w')]),
                 (mgdm, ds_wf,
-                 [('segmentation', 'inputnode.segmentation')])
+                 [('segmentation', 'inputnode.segmentation')]),
+                (volumetric_layerer, ds_wf,
+                 [('depth', 'inputnode.layerdepth'),
+                  ('boundaries', 'inputnode.layerboundaries'),
+                  ('layers', 'inputnode.discretelayers')])
                 ])
 
     # CRUISE only CBS-tools
@@ -408,6 +420,14 @@ def init_nighres_wf(name='nighres',
     wf.connect(extract_regions, 'inside_mask', cruise_only_cbs, 'init_image')
     wf.connect(sum_filters2, 'out_file', cruise_only_cbs, 'vd_image')
 
+    volumetric_layerer_only_cbs = pe.MapNode(VolumetricLayering(n_layers=10),
+                                    iterfield=['inner_levelset',
+                                               'outer_levelset'],
+                                    name='volumetric_layerer_only_cbs')
+
+    wf.connect(cruise, 'gwb', volumetric_layerer_only_cbs, 'inner_levelset')
+    wf.connect(cruise, 'cgb', volumetric_layerer_only_cbs, 'outer_levelset')
+
     ds_wf_only_cbs = init_nighres_ds_wf(derivatives=derivatives,
                                         out_path_base='nighres_only_cbstools',
                                         name='nighres_datasinks_only_cbstools')
@@ -419,7 +439,11 @@ def init_nighres_wf(name='nighres',
                 (inputnode, ds_wf_only_cbs,
                 [('t1w', 'inputnode.t1w')]),
                 (mgdm, ds_wf_only_cbs,
-                 [('segmentation', 'inputnode.segmentation')])
+                 [('segmentation', 'inputnode.segmentation')]),
+                (volumetric_layerer_only_cbs, ds_wf_only_cbs,
+                 [('depth', 'inputnode.layerdepth'),
+                  ('boundaries', 'inputnode.layerboundaries'),
+                  ('layers', 'inputnode.discretelayers')])
                 ])
 
     return wf
@@ -435,11 +459,14 @@ def init_nighres_ds_wf(derivatives='/derivatives',
                                                       'gwb',
                                                       'cgb',
                                                       'segmentation',
-                                                      'thickness']),
+                                                      'thickness',
+                                                      'layerdepth',
+                                                      'layerboundaries',
+                                                      'discretelayers']),
                         name='inputnode')
     
-    for key, suffix in zip(['cortex', 'gwb', 'cgb'],
-                           ['dseg', 'levelset', 'levelset']):
+    for key, suffix in zip(['cortex', 'gwb', 'cgb', 'layerdepth', 'discretelayers', 'layerboundaries'],
+                           ['dseg', 'levelset', 'levelset', 'depth', 'dseg', 'levelset']):
         ds = pe.Node(DerivativesDataSink(base_directory=derivatives,
                                          out_path_base=out_path_base,
                                          desc=key,

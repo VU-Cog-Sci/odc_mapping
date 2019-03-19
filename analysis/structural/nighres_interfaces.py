@@ -503,9 +503,65 @@ class CRUISECortexExtraction(NighresBaseInterface, SimpleInterface):
 
         settings = self._get_inputs()
         self._results = cruise_cortex_extraction(save_data=True,
-                                                 overwrite=True,
+                                                overwrite=True,
                                                  output_dir=runtime.cwd,
                                                  **settings)
+
+        self._list_outputs()
+
+        return runtime
+
+
+class VolumetricLayeringInputSpec(BaseInterfaceInputSpec):
+
+    inner_levelset = File(
+        mandatory=True,
+        exists=True,
+        desc='Levelset representation of the inner surface, typically GM/WM surface')
+
+    outer_levelset = File(
+        mandatory=True,
+        exists=True,
+        desc='Levelset representation of the outer surface, typically GM/CSF surface')
+
+    n_layers = traits.Int(
+        mandatory=False,
+        desc='Number of layers to be created (default is 10)')
+
+    topology_lut_dir = Directory(desc='Path to directory in which topology files '
+                                      'are stored (default is stored in TOPOLOGY_LUT_DIR)')
+
+
+class VolumetricLayeringOutputSpec(TraitedSpec):
+
+    depth = File(
+        exists=True,
+        desc='Continuous depth from 0 (inner surface) to 1 '
+             '(outer surface) (_layering_depth)')
+
+    layers = File(
+        exists=True,
+        desc='Discrete layers from 1 (bordering inner surface) to '
+             'n_layers (bordering outer surface) (_layering_layers)')
+
+    boundaries = File(
+        exists=True,
+        desc='Levelset representations of boundaries between '
+             'all layers in 4D (_layering_boundaries)')
+
+class VolumetricLayering(NighresBaseInterface, SimpleInterface):
+
+    input_spec = VolumetricLayeringInputSpec
+    output_spec = VolumetricLayeringOutputSpec
+
+    def _run_interface(self, runtime):
+        from nighres.laminar import volumetric_layering  
+
+        settings = self._get_inputs()
+        self._results = volumetric_layering(save_data=True,
+                                            overwrite=True,
+                                            output_dir=runtime.cwd,
+                                            **settings)
 
         self._list_outputs()
 
