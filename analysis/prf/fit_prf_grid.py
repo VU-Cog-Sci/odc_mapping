@@ -84,11 +84,11 @@ def main(subject,
                                                      n_jobs=n_jobs)
                                                      
 
-        r2[mask] = optim_pars['r2_opt']
-        size[mask] = optim_pars['size_opt']
-        angle[mask] = optim_pars['angle_opt']
-        ecc[mask] = optim_pars['ecc_opt']
-        method = np.zeros_like(ecc, dtype=str)
+        r2[mask] = optim_pars['r2']
+        size[mask] = optim_pars['size']
+        angle[mask] = optim_pars['angle']
+        ecc[mask] = optim_pars['ecc']
+        method = np.zeros_like(ecc, dtype=object)
         method[mask] = optim_pars['estimation_method']
 
 

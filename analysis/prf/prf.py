@@ -177,19 +177,19 @@ class PRFGridSearch(object):
                                                 bounds,
                                                 verbose)
 
-                    row['x_opt'] = r[0][0]
-                    row['y_opt'] = r[0][1]
-                    row['size_opt'] = r[0][2]
+                    row['x'] = r[0][0]
+                    row['y'] = r[0][1]
+                    row['size'] = r[0][2]
 
                     X = np.ones((len(data_), 2))
                     X[:, 1] = make_zscored_prediction(*r[0], normalize=False)
 
                     beta, residuals, _, _ = np.linalg.lstsq(X, data)
 
-                    row['baseline_opt'] = beta[0]
-                    row['amplitude_opt'] = beta[1]
+                    row['baseline'] = beta[0]
+                    row['amplitude'] = beta[1]
 
-                    row['r2_opt'] = coeff_of_determination(data, X.dot(beta)) / 100
+                    row['r2'] = coeff_of_determination(data, X.dot(beta)) / 100
                     row['estimation_method'] = 'Correlation method'
 
                     return ix, row
@@ -221,14 +221,14 @@ class PRFGridSearch(object):
                                                 bounds,
                                                 verbose)
 
-                    row['x_opt'] = r[0][0]
-                    row['y_opt'] = r[0][1]
-                    row['size_opt'] = r[0][2]
-                    row['amplitude_opt'] = r[0][3]
-                    row['baseline_opt'] = r[0][4]
+                    row['x'] = r[0][0]
+                    row['y'] = r[0][1]
+                    row['size'] = r[0][2]
+                    row['amplitude'] = r[0][3]
+                    row['baseline'] = r[0][4]
 
                     pred = self.model_func.generate_prediction(*r[0])
-                    row['r2_opt'] = coeff_of_determination(data, pred) / 100
+                    row['r2'] = coeff_of_determination(data, pred) / 100
 
                     row['estimation_method'] = 'Traditional method'
 
@@ -241,8 +241,8 @@ class PRFGridSearch(object):
 
         results = optim_results.combine_first(results)
 
-        results['ecc_opt'] = np.sqrt(results['x_opt'] **2 + results['y_opt']**2)
-        results['angle_opt'] = np.arctan2(results['y_opt'], results['x_opt'])
+        results['ecc'] = np.sqrt(results['x'] **2 + results['y']**2)
+        results['angle'] = np.arctan2(results['y'], results['x'])
 
         return results
 
