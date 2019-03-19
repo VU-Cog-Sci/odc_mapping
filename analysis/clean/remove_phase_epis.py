@@ -36,7 +36,8 @@ def main(sourcedata,
         if epi_im.shape[-1] == LENGTH_EPI:
             print('Correcting {}'.format(epi.filename))
             index = np.zeros(LENGTH_EPI, dtype=bool)
-            index[:int(LENGTH_EPI/2)] = True
+            #index[:int(LENGTH_EPI/2)] = True
+            index[::2] = True
             new_im = image.index_img(epi_im, index)
             print(new_im.shape)
             new_im.to_filename(epi.filename)
@@ -53,7 +54,8 @@ def main(sourcedata,
         if bold_im.shape[-1] == LENGTH_BOLD:
             print('Correcting {}'.format(bold.filename))
             index = np.zeros(LENGTH_BOLD, dtype=bool)
-            index[:int(LENGTH_BOLD/2)] = True
+            #index[:int(LENGTH_BOLD/2)] = True
+            index[::2] = True
             new_im = image.index_img(bold_im, index)
             print(new_im.shape)
             new_im.to_filename(bold.filename)
