@@ -85,24 +85,24 @@ def main(sourcedata,
         paradigm = pd.read_table(row['path_events'])
         model.fit(row['path_bold'], paradigm, confounds=confounds_trans)
 
+        row['run'] = int(row['run'])
+        row = dict(row)
+
         left_right = model.compute_contrast('eye_L - eye_R', output_type='z_score')
-        left_right.to_filename(os.path.join(results_dir, 'sub-{}_ses-{}_run-{}_left_over_right_zmap.nii.gz'.format(row['subject'], 
-                                                                                                                   row['session'],
-                                                                                                                   row['run'])))
+        left_right.to_filename(os.path.join(results_dir,
+                                            'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_over_right_zmap.nii.gz'.format(**row)))
+
         left_right = model.compute_contrast('eye_L - eye_R', output_type='effect_size')
         left_right.to_filename(os.path.join(results_dir, 
-                                            'sub-{}_ses-{}_run-{}_left_over_right_psc.nii.gz'.format(
-                                                row['subject'], row['session'], row['run'])))
+                                            'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_over_right_psc.nii.gz'.format(**row)))
 
         left = model.compute_contrast('eye_L', output_type='effect_size')
         left.to_filename(os.path.join(results_dir, 
-                                      'sub-{}_ses-{}_run-{}_left_psc.nii.gz'.format(
-                                                row['subject'], row['session'], row['run'])))
+                                      'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_psc.nii.gz'.format(**row)))
 
         right = model.compute_contrast('eye_R', output_type='effect_size')
         right.to_filename(os.path.join(results_dir, 
-                                       'sub-{}_ses-{}_run-{}_right_psc.nii.gz'.format(
-                                                row['subject'], row['session'], row['run'])))
+                                       'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_right_psc.nii.gz'.format( **row)))
 
         models.append(model)
 
