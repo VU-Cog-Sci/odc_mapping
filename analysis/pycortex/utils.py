@@ -13,6 +13,7 @@ def get_bids_file(folder,
                   echo = None,
                   inversion=None,
                   part=None,
+                  hemisphere=None,
                   extension='nii.gz',
                   check_exists=True):
 
@@ -26,9 +27,10 @@ def get_bids_file(folder,
     acquisition_str = '_acq-{}'.format(acquisition) if acquisition else ''
     inv_str = '_inv-{}'.format(inversion) if inversion else ''
     echo_str = '_echo-{}'.format(echo) if echo else ''
-    part_str = '_part-{}'.format(part) if echo else ''
+    part_str = '_part-{}'.format(part) if part else ''
+    hemi_str = '_hemi-{}'.format(hemisphere) if hemisphere else ''
 
-    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{session_str}{acquisition_str}{space_str}{label_str}{desc_str}{inv_str}{echo_str}{part_str}_{suffix}.{extension}'.format(**locals())
+    str = 'sub-{subject}/{session_folder}{modality}/sub-{subject}{session_str}{acquisition_str}{space_str}{label_str}{desc_str}{hemi_str}{inv_str}{echo_str}{part_str}_{suffix}.{extension}'.format(**locals())
 
     fn = os.path.join(folder, str)
 
