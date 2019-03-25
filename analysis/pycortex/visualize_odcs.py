@@ -17,7 +17,7 @@ def main(sourcedata,
          dataset='odc'):
 
 
-    if subject in ['bm']:
+    if subject in []:
         trans_str = '_trans'
     else:
         trans_str = ''
@@ -26,7 +26,10 @@ def main(sourcedata,
 
     zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
 
-    mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-fixation_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
+    if subject == 'bm':
+        mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-checkerboard_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
+    else:
+        mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-fixation_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
 
     #psc = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_effect_size.nii.gz'.format(**locals())
 
