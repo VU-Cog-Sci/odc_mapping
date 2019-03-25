@@ -4,6 +4,7 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.freesurfer as fs
 import nipype.interfaces.utility as niu
 import os
+import os.path as op
 import numpy as np
 from niworkflows.interfaces.bids import DerivativesDataSink
 
@@ -22,6 +23,8 @@ def main(derivatives,
                         acquisition='*',
                         task='*',
                         suffix='preproc')
+
+    os.environ['SUBJECTS_DIR'] = op.join(derivatives, 'freesurfer')
 
     wf = pe.Workflow(name='sample_fs_{}_{}'.format(subject, session),
                      base_dir=workflow_folder)
