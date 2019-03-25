@@ -13,11 +13,20 @@ def main(sourcedata,
          derivatives,
          subject,
          session,
+         cache=False,
          dataset='odc'):
+
+
+    if subject in ['bm']:
+        trans_str = '_trans'
+    else:
+        trans_str = ''
 
     pc_subject = '{}.{}'.format(dataset, subject)
 
-    zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_zmap.nii.gz'.format(**locals())
+    zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
+
+    mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-fixation_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
 
     #psc = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_effect_size.nii.gz'.format(**locals())
 
@@ -25,10 +34,10 @@ def main(sourcedata,
                          subject, 'T1w', 'anat', 'average')
 
     zmap = image.resample_to_img(zmap, t1w)
-    #psc = image.resample_to_img(psc, t1w)
+    mean_epi = image.resample_to_img(mean_epi, t1w)
 
     transform = cortex.xfm.Transform(np.identity(4), t1w)
-    #transform.save(pc_subject, 'identity.t1w', 'magnet')
+    transform.save(pc_subject, 'identity.t1w', 'magnet')
 
 
     mask = image.math_img('np.abs(zmap)', zmap=zmap)
@@ -43,6 +52,11 @@ def main(sourcedata,
                                      pc_subject,
                                      'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      cmap='BuBkRd_alpha_2D')
+
+    images['mean_epi'] = cortex.Volume(mean_epi.get_data().T,
+                                       pc_subject,
+                                       'identity.t1w')
+
     #images['psc'] = cortex.Volume(psc.get_data().T, pc_subject, 'identity.t1w', vmin=-5, vmax=5)
     
     prf_pars = np.load(op.join(derivatives, 'prf/vertices/sub-{subject}_desc-test2_prf_optim.npz').format(**locals()))
@@ -68,7 +82,7 @@ def main(sourcedata,
                                      
     #cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject),
                              #data=ds)
-    cortex.webshow(ds, recache=True)
+    cortex.webshow(ds, recache=cache)
     #cortex.webshow(ds)
 
 
