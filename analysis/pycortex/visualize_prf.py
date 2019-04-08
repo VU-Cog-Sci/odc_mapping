@@ -10,6 +10,9 @@ import re
 import matplotlib.colors as colors
 import seaborn as sns
 import os.path as op
+from bids import BIDSLayout
+from nilearn import image
+from utils import get_bids_file
 
 
 def main(pars,
@@ -101,6 +104,26 @@ def main(pars,
     vt_v2[v2_ix] = v2_values
 
     images['fs_v2'] = cortex.Vertex(vt_v2, pc_subject)
+
+    layout = BIDSLayout(op.join(derivatives, 'tsnr'),
+                        validate=False)
+
+    veins = layout.get(subject=subject,
+                       session='prf',
+                       suffix='invtsnr',
+                       return_type='file')
+    veins = image.mean_img(veins)
+
+    t1w = cortex.db.get_anat(pc_subject, 'raw')
+    veins = image.resample_to_img(veins,
+                                  t1w)
+
+    images['veins'] = cortex.Volume(veins.get_data().T,
+                                    subject=pc_subject,
+                                    xfmname='identity',
+                                    vmin=0,
+                                    vmax=2)
+
 
 
     if make_svg:

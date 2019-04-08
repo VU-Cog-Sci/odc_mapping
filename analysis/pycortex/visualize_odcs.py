@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from nilearn import image
+from bids import BIDSLayout
 
 def main(sourcedata,
          derivatives,
@@ -81,6 +82,23 @@ def main(sourcedata,
     images['angle'] = cortex.Vertex(angle, pc_subject, vmin=-3.14, vmax=3.14, cmap='hsv')
     images['size'] = cortex.Vertex(size, pc_subject, vmin=0, vmax=10)
 
+    # VEIN MASK
+    layout = BIDSLayout(op.join(derivatives, 'tsnr'),
+                        validate=False)
+
+    veins = layout.get(subject=subject,
+                       session=session,
+                       suffix='invtsnr',
+                       return_type='file')
+    veins = image.mean_img(veins)
+    t1w = cortex.db.get_anat(pc_subject, 'raw')
+    veins = image.resample_to_img(veins,
+                                  t1w)
+    images['veins'] = cortex.Volume(veins.get_data().T,
+                                    subject=pc_subject,
+                                    xfmname='identity',
+                                    vmin=0,
+                                    vmax=2)
     ds = cortex.Dataset(**images)
                                      
     #cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject),
