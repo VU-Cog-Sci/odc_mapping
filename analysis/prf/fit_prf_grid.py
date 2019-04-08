@@ -6,6 +6,7 @@ import os
 import os.path as op
 import numpy as np
 from scipy import signal
+from nilearn import image
 
 
 def main(subject,
@@ -39,7 +40,7 @@ def main(subject,
     #sizes = np.geomspace(.25, 15, 10)
 
     print('making predictions')
-    grid_searcher.make_predictions(angles, eccs, sizes, n_jobs=n_jobs)
+    #grid_searcher.make_predictions(angles, eccs, sizes, n_jobs=n_jobs)
 
     if source == 'vertices':
 
@@ -98,6 +99,17 @@ def main(subject,
                  angle=angle,
                  ecc=ecc,
                  method=method)
+
+    elif source == 'voxels':
+        mask_template = op.join(derivatives, 'pycortex', 'masks',
+                                'sub-{subject}', 'sub-{subject}_desc-{mask}_gm_mask.nii.gz')
+        v1_l = image.load_img(mask_template.format(subject=subject, mask='v1l'))
+        v1_r = image.load_img(mask_template.format(subject=subject, mask='v1r'))
+
+        v1 = image.math_img('v1_l + v1_r', v1_l=v1_l, v1_r=v1_r)
+
+
+
 
 if __name__ == '__main__':
 
