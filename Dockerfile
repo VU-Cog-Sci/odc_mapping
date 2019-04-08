@@ -57,7 +57,7 @@ COPY spynoza /spynoza
 RUN bash -c "source activate neuro && pip uninstall -y spynoza && cd /spynoza && python setup.py develop"
 
 COPY ./fmriprep /fmriprep
-RUN bash -c "source activate neuro && pip uninstall -y fmriprep && cd /fmriprep && python setup.py develop"
+RUN bash -c "source activate neuro && pip uninstall -y pybids fmriprep && conda install pandas=0.23 && cd /fmriprep && python setup.py develop"
 RUN bash -c "source activate neuro && pip install niworkflows --upgrade --no-dependencies && pip install templateflow"
 
 RUN bash -c "source activate neuro && pip uninstall -y nistats && pip install git+https://github.com/nistats/nistats"
