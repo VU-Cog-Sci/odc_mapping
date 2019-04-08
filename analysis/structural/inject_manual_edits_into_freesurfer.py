@@ -78,7 +78,7 @@ def main(sourcedata,
         # Get rid of any weird small components
         freesurfer_wm_new_ =  nb.Nifti1Image(freesurfer_wm_new.get_data(), freesurfer_wm_new.affine)
         largest_component = image.largest_connected_component_img(freesurfer_wm_new_)
-        largest_component = nb.MGHImage(larget_component.get_data(), freesurfer_wm_new.affine, freesurfer_wm_new.header)
+        largest_component = nb.MGHImage(largest_component.get_data(), freesurfer_wm_new.affine, freesurfer_wm_new.header)
 
         freesurfer_wm_new = image.math_img('freesurfer_wm * largest_component',
                                            freesurfer_wm=freesurfer_wm_new,
@@ -94,6 +94,9 @@ def main(sourcedata,
                                    inside=manual_inside_mask)
 
     new_brainmask.to_filename(freesurfer_brainmask)
+
+    new_brainmask.to_filename(op.join(derivatives, 'freesurfer', 'sub-{subject}',
+                                  'mri', 'brain.finalsurfs.manedit.mgz').format(**locals()))
 
     #os.environ['SUBJECTS_DIR'] = op.join(derivatives, 'freesurfer')
     ##subprocess.run(['recon-all', '-autorecon-pial', '-subjid', 'sub-{}'.format(subject)], shell=True)
