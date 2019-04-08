@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from nilearn import image
+from bids import BIDSLayout
 
 def main(sourcedata,
          derivatives,
@@ -17,7 +18,7 @@ def main(sourcedata,
          dataset='odc'):
 
 
-    if subject in ['bm']:
+    if subject in []:
         trans_str = '_trans'
     else:
         trans_str = ''
@@ -26,7 +27,10 @@ def main(sourcedata,
 
     zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
 
-    mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-fixation_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
+    if subject == 'bm':
+        mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-checkerboard_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
+    else:
+        mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-fixation_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
 
     #psc = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_effect_size.nii.gz'.format(**locals())
 
@@ -78,6 +82,23 @@ def main(sourcedata,
     images['angle'] = cortex.Vertex(angle, pc_subject, vmin=-3.14, vmax=3.14, cmap='hsv')
     images['size'] = cortex.Vertex(size, pc_subject, vmin=0, vmax=10)
 
+    # VEIN MASK
+    layout = BIDSLayout(op.join(derivatives, 'tsnr'),
+                        validate=False)
+
+    veins = layout.get(subject=subject,
+                       session=session,
+                       suffix='invtsnr',
+                       return_type='file')
+    veins = image.mean_img(veins)
+    t1w = cortex.db.get_anat(pc_subject, 'raw')
+    veins = image.resample_to_img(veins,
+                                  t1w)
+    images['veins'] = cortex.Volume(veins.get_data().T,
+                                    subject=pc_subject,
+                                    xfmname='identity',
+                                    vmin=0,
+                                    vmax=2)
     ds = cortex.Dataset(**images)
                                      
     #cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject),
