@@ -4,6 +4,7 @@ import pandas as pd
 import argparse
 from bids import BIDSLayout
 import os
+import os.path as op
 from nilearn import image
 from sklearn import decomposition
 from sklearn.model_selection import KFold
@@ -14,8 +15,7 @@ def main(sourcedata,
          subject,
          session,
          tmp_dir):
-    
-    print(subject, session)
+
     sourcedata_layout = BIDSLayout(sourcedata)
     sourcedata_df = sourcedata_layout.as_data_frame()
     events =  sourcedata_df[(sourcedata_df['suffix'] == 'events') &
@@ -44,8 +44,6 @@ def main(sourcedata,
     df = events.merge(bold, on=['subject', 'session', 'run'],
                            suffixes=('_events','_bold'))
 
-    print(confounds.shape, compcor.shape)
-
     confounds = confounds.rename(columns={'path':'confounds'})
     df = df.merge(confounds[['subject', 'session', 'run', 'confounds']])
 
@@ -54,7 +52,7 @@ def main(sourcedata,
 
     df.sort_values('run', inplace=True)
 
-    
+
     models = []
     for ix, row in df.iterrows():
 
@@ -81,6 +79,7 @@ def main(sourcedata,
         print('Fitting {}'.format(row['path_bold']))
         model = FirstLevelModel(t_r=4,
                                 signal_scaling=False,
+                                subject_label=int(row['run']),
                                 mask=mask)
         paradigm = pd.read_table(row['path_events'])
         model.fit(row['path_bold'], paradigm, confounds=confounds_trans)
@@ -106,6 +105,8 @@ def main(sourcedata,
 
         models.append(model)
 
+
+
     second_level_model = SecondLevelModel(mask=mask)
     second_level_model.fit(models)
 
@@ -122,26 +123,41 @@ def main(sourcedata,
     left_right_group.to_filename(os.path.join(results_dir, 
                                               'sub-{}_ses-{}_left_over_right_effect_size.nii.gz'.format(row['subject'], 
                                                                                                  row['session'])))
-    
+
     os.makedirs(os.path.join(results_dir, 'cv'), exist_ok=True)
-    
+
     kf = KFold(n_splits=len(models) // 2)
 
-    models = np.array(models)
+    models_ = np.array(models)
 
-    for i, (train, test) in enumerate(kf.split(models)):
+    for i, (train, test) in enumerate(kf.split(models_)):
 
         print('CV %d' % (i+1))
         print('Train: {}'.format(train))
         print('Test: {}'.format(test))
         second_level_model = SecondLevelModel(mask=mask)
-        second_level_model.fit(list(models[train]))
+        second_level_model.fit(list(models_[train]))
 
         left_right_group =second_level_model.compute_contrast(
             first_level_contrast='eye_L - eye_R',
             output_type='z_score')
         left_right_group.to_filename(os.path.join(results_dir, 'cv',
                                                   'sub-{}_ses-{}_cv-{}_left_over_right_zmap.nii.gz'.format(row['subject'], row['session'], i+1)))
+
+    confounds = df[['task_events']]
+    confounds['task_events'] = confounds.task_events.map({'checkerboard':1, 'fixation':0})
+    confounds['subject_label'] = df['run'].astype(int)
+
+    second_level_model = SecondLevelModel(mask=mask)
+    second_level_model.fit(models, confounds=confounds)
+
+    attention_contrast =second_level_model.compute_contrast(first_level_contrast='eye_L - eye_R',
+                                                            second_level_contrast='task_events',
+                                                            output_type='z_score')
+
+    attention_contrast.to_filename(op.join(results_dir,
+                                                  'sub-{}_ses-{}_left_over_right_task_zmap.nii.gz'.format(row['subject'],
+                                                                                                                row['session'])))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

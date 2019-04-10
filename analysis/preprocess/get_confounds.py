@@ -4,10 +4,11 @@ import nipype.pipeline.engine as pe
 from bids import BIDSLayout
 import nipype.interfaces.utility as niu
 from nipype.algorithms.confounds import ACompCor, ComputeDVARS
-from fmriprep.interfaces.utils import AddTPMs
+from niworkflows.interfaces.utils import AddTPMs
 import os
 from fmriprep.interfaces import DerivativesDataSink
-from fmriprep.interfaces import GatherConfounds, AddTSVHeader
+from niworkflows.interfaces.utils import AddTSVHeader
+from fmriprep.interfaces import GatherConfounds
 from utils import get_derivative
 
 
@@ -19,8 +20,10 @@ def main(sourcedata,
 
          run=None):
 
+    print(subject, session, run)
+
     layout = BIDSLayout(sourcedata)
-    derivatives_layout = BIDSLayout('/derivatives')
+    derivatives_layout = BIDSLayout('/derivatives/spynoza', validate=False)
 
     cortex_l = get_derivative(derivatives, 'nighres', 'anat', subject, 'dseg',
                               session='anat', space='average', description='cortex',
