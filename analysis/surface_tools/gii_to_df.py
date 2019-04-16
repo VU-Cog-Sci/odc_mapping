@@ -43,8 +43,9 @@ def main(derivatives,
 
 
         d_l = surface.load_surf_data(fn).T
-        d_r = surface.load_surf_data(fn.replace('lhemi-lh', 'hemi-rh')).T
+        d_r = surface.load_surf_data(fn.replace('hemi-lh', 'hemi-rh')).T
         d = np.concatenate((d_l, d_r), 1)
+        print(d.shape)
         d = pd.DataFrame(clean(d, confounds=confounds_trans.values, standardize='psc'))
 
         
@@ -61,20 +62,21 @@ def main(derivatives,
     results_ = []
 
     for key in rois:
-        tmp = results.loc[:, rois[key].tolist() + ix_keys]
-        tmp = tmp.loc[:, (tmp != 0).any()]
-        
-        tmp = tmp.pivot_table(index=ix_keys[:-1], 
-                        columns='depth')
-        
-        tmp = pd.concat([tmp], keys=[key], names=['roi'], axis=1)
-        results_.append(tmp)
+        if len(rois[key])> 0:
+            tmp = results.loc[:, rois[key].tolist() + ix_keys]
+            
+            tmp = tmp.pivot_table(index=ix_keys[:-1], 
+                            columns='depth')
+            
+            tmp = pd.concat([tmp], keys=[key], names=['roi'], axis=1)
+            results_.append(tmp)
         
     results = pd.concat(results_, axis=1)
     results.columns.set_names('vertex', 1, inplace=True)
 
-    verts_without_all_zeros = np.where(~(results == 0).any(0).groupby('vertex').any())[0]
-    results = results.loc[:, (slice(None), verts_without_all_zeros, slice(None))]
+    # Filter out vertices where one or more runs/depths has std of 0
+    ix = (~(((results.groupby('run').std() == 0).any(0)))).groupby('vertex').all()
+    results = results.loc[:, results.columns.get_level_values('vertex').isin(ix[ix].index)]
 
     target_dir = op.join(derivatives,
                          'depth_sampled_surfaces',
@@ -83,7 +85,7 @@ def main(derivatives,
     if not op.exists(target_dir):
         os.makedirs(target_dir)
 
-    results.to_pickle(op.join(target_dir, 'sub-{subject}_depth_sampled_data.pkl.gz'))
+    results.to_pickle(op.join(target_dir, 'sub-{subject}_ses-{session}_depth_sampled_data.pkl.gz'.format(**locals())))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

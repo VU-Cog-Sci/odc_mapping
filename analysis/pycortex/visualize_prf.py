@@ -55,7 +55,7 @@ def main(pars,
 
     r2_max = np.max(r2)
     r2_max = 0.3
-    r2_min = 0.1
+    r2_min = 0.05
 
 
     hsv_angle = np.ones((len(r2), 3))

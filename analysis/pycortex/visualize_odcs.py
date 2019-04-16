@@ -27,6 +27,8 @@ def main(sourcedata,
 
     zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
 
+    #zmap_task = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_task_zmap.nii.gz'.format(**locals())
+
     if subject == 'bm':
         mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-checkerboard_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
     else:
@@ -38,10 +40,12 @@ def main(sourcedata,
                          subject, 'T1w', 'anat', 'average')
 
     zmap = image.resample_to_img(zmap, t1w)
+    #zmap_task = image.resample_to_img(zmap_task, t1w)
     mean_epi = image.resample_to_img(mean_epi, t1w)
 
     transform = cortex.xfm.Transform(np.identity(4), t1w)
-    transform.save(pc_subject, 'identity.t1w', 'magnet')
+    if not np.in1d(subject, ['bm', 'tk']):
+        transform.save(pc_subject, 'identity.t1w', 'magnet')
 
 
     mask = image.math_img('np.abs(zmap)', zmap=zmap)
@@ -56,13 +60,20 @@ def main(sourcedata,
                                      pc_subject,
                                      'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      cmap='BuBkRd_alpha_2D')
+    #zmap_task = zmap_task.get_data().T
+    #zmap_task[zmap_task == 0] = np.nan
+    #images['zmap_task'] = cortex.Volume2D(zmap_task,
+                                     #mask,
+                                     #pc_subject,
+                                     #'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
+                                     #cmap='BuBkRd_alpha_2D')
 
     images['mean_epi'] = cortex.Volume(mean_epi.get_data().T,
                                        pc_subject,
                                        'identity.t1w')
 
-    #images['psc'] = cortex.Volume(psc.get_data().T, pc_subject, 'identity.t1w', vmin=-5, vmax=5)
     
+    # PRFs
     prf_pars = np.load(op.join(derivatives, 'prf/vertices/sub-{subject}_desc-test2_prf_optim.npz').format(**locals()))
 
     r2 = prf_pars['r2']
