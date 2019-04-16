@@ -62,6 +62,8 @@ def main(sourcedata,
                                    'sub-{}'.format(row['subject']))
         if 'session' in row:
             results_dir = os.path.join(results_dir, 'ses-{}'.format(row['session']))
+
+        results_dir = op.join(results_dir, 'func')
         
         os.makedirs(results_dir, exist_ok=True)
 
