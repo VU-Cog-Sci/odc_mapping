@@ -14,3 +14,6 @@
 [submodule "pymp2rage"]
 	path = pymp2rage
 	url = git@github.com:Gilles86/pymp2rage.git
+[submodule "pycortex"]
+	path = pycortex
+	url = git@github.com:Gilles86/pycortex.git

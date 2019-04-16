@@ -59,9 +59,9 @@ RUN bash -c "source activate neuro && pip uninstall -y spynoza && cd /spynoza &&
 COPY ./fmriprep /fmriprep
 RUN bash -c "source activate neuro && pip uninstall -y pybids fmriprep && conda install pandas=0.23 && cd /fmriprep && python setup.py develop"
 RUN bash -c "source activate neuro && pip install niworkflows --upgrade --no-dependencies && pip install templateflow"
-
 RUN bash -c "source activate neuro && pip uninstall -y nistats && pip install git+https://github.com/nistats/nistats"
 
-#COPY pybids /pybids
-#RUN bash -c "source activate neuro && pip uninstall -y pybids && cd /pybids && python setup.py develop"
 RUN git clone https://github.com/kwagstyl/surface_tools.git /surface_tools
+
+COPY ./pycortex /pycortex
+RUN bash -c "source activate neuro && pip uninstall -y pycortex && cd /pycortex && python setup.py install"
