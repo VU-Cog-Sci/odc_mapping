@@ -1,7 +1,10 @@
 sub-tk: 
+  lh: 
+    start: 1551
+    end: 18165
   rh: 
-    start: 6703
-    end: 22724
+    start: 3081
+    end: 5811
 
 sub-tr:
   lh:
