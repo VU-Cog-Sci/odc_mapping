@@ -13,3 +13,36 @@ sub-tr:
   rh: 
     start: 12628
     end: 28333
+
+sub-bm:
+  lh:
+    start: 1582
+    end: 6817
+  rh:
+    start: 3713
+    end: 16033
+
+sub-ns:
+  lh:
+    start: 10280
+    end: 18709
+
+  rh:
+    start: 3390
+    end: 13292
+
+sub-eo:
+  lh:
+    start: 6909
+    end: 16409
+  rh: 
+    start: 6398
+    end: 18590
+
+sub-ms:
+  lh:
+    start: 3458
+    end: 13054
+  rh:
+    start: 1248
+    end: 15380
