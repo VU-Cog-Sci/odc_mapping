@@ -112,17 +112,18 @@ def main(pars,
                        session='prf',
                        suffix='invtsnr',
                        return_type='file')
-    veins = image.mean_img(veins)
+    if len(veins) > 0:
+        veins = image.mean_img(veins)
 
-    t1w = cortex.db.get_anat(pc_subject, 'raw')
-    veins = image.resample_to_img(veins,
-                                  t1w)
+        t1w = cortex.db.get_anat(pc_subject, 'raw')
+        veins = image.resample_to_img(veins,
+                                      t1w)
 
-    images['veins'] = cortex.Volume(veins.get_data().T,
-                                    subject=pc_subject,
-                                    xfmname='identity',
-                                    vmin=0,
-                                    vmax=2)
+        images['veins'] = cortex.Volume(veins.get_data().T,
+                                        subject=pc_subject,
+                                        xfmname='identity',
+                                        vmin=0,
+                                        vmax=2)
 
 
 
