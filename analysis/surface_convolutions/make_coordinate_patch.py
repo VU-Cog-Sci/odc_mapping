@@ -19,35 +19,41 @@ def main(derivatives,
     meta = db['sub-{}'.format(subject)]
 
     left, right = cortex.db.get_surf('odc.{}'.format(subject), 'fiducial')
-    left_surface = cortex.polyutils.Surface(left[0], left[1])
-    right_surface = cortex.polyutils.Surface(right[0] , right[1])
 
-    patch = left_surface.get_geodesic_strip_patch(v0=meta['lh']['start'],
-                                                         v1=meta['lh']['end'],
-                                                         m=2.5,
-                                                         method='whole_surface',
-                                                         radius=30)
-
-    xy = pd.DataFrame({'x':patch['coordinates'][0, :],
-                       'y':patch['coordinates'][1, :]})
-
-    # Subsurface is non-pickable
-    ss = patch.pop('subsurface', None)
-
-    patch_indices = xy[patch['vertex_mask']].index
-    patch['distances'] = np.array([ss.geodesic_distance(ss.subsurface_vertex_map[ix]) for ix in patch_indices])
-
-    # rows correspond to centers of coordinate system
-    patch['vertexwise_coordinate_system'] = (xy.loc[patch_indices].values[np.newaxis, :, :] - xy.loc[patch_indices].values[:, np.newaxis, :])
+    surfaces = {}
+    surfaces['lh'] = cortex.polyutils.Surface(left[0], left[1])
+    surfaces['rh'] = cortex.polyutils.Surface(right[0] , right[1])
 
 
-    target_dir = op.join(derivatives, 'coordinate_patches', 'sub-{subject}', 'anat').format(**locals())
+    for hemisphere in ['lh', 'rh']:
+        patch = surfaces[hemisphere].get_geodesic_strip_patch(v0=meta[hemisphere]['start'],
+                                                             v1=meta[hemisphere]['end'],
+                                                             m=2.5,
+                                                             method='whole_surface',
+                                                             radius=20)
 
-    if not op.exists(target_dir):
-        os.makedirs(target_dir)
+        xy = pd.DataFrame({'x':patch['coordinates'][0, :],
+                           'y':patch['coordinates'][1, :]})
 
-    with open(op.join(target_dir, 'sub-{subject}_hemi-lh_coordinatepatch.pkl').format(**locals()), 'wb') as f:
-        pkl.dump(patch, f, protocol=4)
+        # Subsurface is non-pickable
+        ss = patch.pop('subsurface', None)
+
+        #patch_indices = xy[patch['vertex_mask']].index
+        #patch['distances'] = np.array([ss.geodesic_distance(ss.subsurface_vertex_map[ix]) for ix in patch_indices])
+
+        # rows correspond to centers of coordinate system
+        #patch['vertexwise_coordinate_system'] = (xy.loc[patch_indices].values[np.newaxis, :, :] - xy.loc[patch_indices].values[:, np.newaxis, :])
+
+
+        target_dir = op.join(derivatives, 'coordinate_patches', 'sub-{subject}', 'anat').format(**locals())
+
+        if not op.exists(target_dir):
+            os.makedirs(target_dir)
+
+        with open(op.join(target_dir,
+                          'sub-{subject}_hemi-{hemisphere}_coordinatepatch.pkl').format(**locals()),
+                  'wb') as f:
+            pkl.dump(patch, f, protocol=4)
 
         
 if __name__ == '__main__':
