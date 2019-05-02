@@ -15,7 +15,7 @@ def main(sourcedata,
          dataset='odc'):
 
     pc_subject = '{}.{}'.format(dataset, subject)
-    template = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_zmap.nii.gz'
+    template = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_left_over_right_zmap.nii.gz'
 
     session = 'odc2'
     zmap1 = template.format(**locals())
@@ -30,7 +30,7 @@ def main(sourcedata,
     zmap2 = image.resample_to_img(zmap2, t1w, interpolation='nearest')
 
     transform = cortex.xfm.Transform(np.identity(4), t1w)
-    transform.save(pc_subject, 'identity.t1w', 'magnet')
+    #transform.save(pc_subject, 'identity.t1w', 'magnet')
 
     mask = image.math_img('np.abs(zmap)', zmap=zmap1)
     
