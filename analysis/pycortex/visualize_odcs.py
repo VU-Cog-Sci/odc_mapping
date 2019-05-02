@@ -9,6 +9,7 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from nilearn import image
 from bids import BIDSLayout
+import matplotlib.colors as colors
 
 def main(sourcedata,
          derivatives,
@@ -25,7 +26,7 @@ def main(sourcedata,
 
     pc_subject = '{}.{}'.format(dataset, subject)
 
-    zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
+    zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
 
     #zmap_task = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_task_zmap.nii.gz'.format(**locals())
 
@@ -60,6 +61,10 @@ def main(sourcedata,
                                      pc_subject,
                                      'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      cmap='BuBkRd_alpha_2D')
+    images['abs_zmap'] = cortex.Volume(np.abs(zmap),
+                                     pc_subject,
+                                     'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3)
+                                     #cmap='BuBkRd_alpha_2D')
     #zmap_task = zmap_task.get_data().T
     #zmap_task[zmap_task == 0] = np.nan
     #images['zmap_task'] = cortex.Volume2D(zmap_task,
@@ -68,16 +73,16 @@ def main(sourcedata,
                                      #'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      #cmap='BuBkRd_alpha_2D')
 
-    images['mean_epi'] = cortex.Volume(mean_epi.get_data().T,
-                                       pc_subject,
-                                       'identity.t1w')
+    #images['mean_epi'] = cortex.Volume(mean_epi.get_data().T,
+                                       #pc_subject,
+                                       #'identity.t1w')
 
     
     # PRFs
     prf_pars = np.load(op.join(derivatives, 'prf/vertices/sub-{subject}_desc-test2_prf_optim.npz').format(**locals()))
 
     r2 = prf_pars['r2']
-    mask = r2 < 0.05
+    mask = r2 < 0.1
 
     angle = prf_pars['angle']
     angle[mask] = np.nan
@@ -88,10 +93,37 @@ def main(sourcedata,
     size = prf_pars['size']
     size[mask] = np.nan
 
-    images['r2'] = cortex.Vertex(prf_pars['r2'], pc_subject, cmap='inferno')
+    r2_max = np.max(r2)
+    r2_max = 0.3
+    r2_min = 0.05
+
+    hsv_angle = np.ones((len(r2), 3))
+    hsv_angle[:, 0] = angle.copy()
+    hsv_angle[:, 1] = np.clip(r2 / r2_max * 2, 0, 1)
+    hsv_angle[:, 2] = r2 > r2_min
+
+    left_index = cortex.db.get_surfinfo(pc_subject).left.shape[0]
+    angle_ = hsv_angle[:left_index, 0]
+    hsv_angle[:left_index, 0] = np.clip(((angle_ + np.pi) - 0.25 * np.pi) / (1.5 * np.pi), 0, 1)
+    angle_ = -hsv_angle[left_index:, 0].copy()
+    angle_[hsv_angle[left_index:, 0] > 0] += 2 * np.pi
+    angle_ = np.clip((angle_ - 0.25 * np.pi) / 1.5 / np.pi, 0, 1)
+    hsv_angle[left_index:, 0] = angle_
+
+    rgb_angle = colors.hsv_to_rgb(hsv_angle)
+
+    alpha_angle = np.clip(r2 / r2_max * 2, r2_min/r2_max, 1)
+    alpha_angle[alpha_angle < r2_min/r2_max] = 0
+    alpha_angle = hsv_angle[:, 2]
+
+    images['angle'] = cortex.VertexRGB(rgb_angle[:, 0], rgb_angle[:, 1], rgb_angle[:, 2],
+                                       #alpha=np.ones(len(rgb_angle)),
+                                       alpha=alpha_angle,
+                                       subject=pc_subject)
+    #images['r2'] = cortex.Vertex(prf_pars['r2'], pc_subject, cmap='inferno')
     images['ecc'] = cortex.Vertex(ecc, pc_subject, vmin=0,vmax=15, cmap='inferno')
-    images['angle'] = cortex.Vertex(angle, pc_subject, vmin=-3.14, vmax=3.14, cmap='hsv')
-    images['size'] = cortex.Vertex(size, pc_subject, vmin=0, vmax=10)
+    #images['angle_1d'] = cortex.Vertex(angle, pc_subject, vmin=-3.14, vmax=3.14, cmap='hsv')
+    #images['size'] = cortex.Vertex(size, pc_subject, vmin=0, vmax=10)
 
     # VEIN MASK
     layout = BIDSLayout(op.join(derivatives, 'tsnr'),
@@ -101,19 +133,23 @@ def main(sourcedata,
                        session=session,
                        suffix='invtsnr',
                        return_type='file')
-    veins = image.mean_img(veins)
-    t1w = cortex.db.get_anat(pc_subject, 'raw')
-    veins = image.resample_to_img(veins,
-                                  t1w)
-    images['veins'] = cortex.Volume(veins.get_data().T,
-                                    subject=pc_subject,
-                                    xfmname='identity',
-                                    vmin=0,
-                                    vmax=2)
+
+    if len(veins) > 0:
+        veins = image.mean_img(veins)
+        t1w = cortex.db.get_anat(pc_subject, 'raw')
+        veins = image.resample_to_img(veins,
+                                      t1w)
+        images['veins'] = cortex.Volume(veins.get_data().T,
+                                        subject=pc_subject,
+                                        xfmname='identity',
+                                        vmin=0,
+                                        vmax=2)
     ds = cortex.Dataset(**images)
                                      
-    #cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject),
-                             #data=ds)
+    cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject),
+                             data=ds)
+    cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject, 'light'),
+                             data=images['zmap'])
     cortex.webshow(ds, recache=cache)
     #cortex.webshow(ds)
 
