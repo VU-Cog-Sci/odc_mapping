@@ -16,7 +16,7 @@ def main(derivatives,
 
     fn_template = op.join(derivatives, 'sampled_giis', 'sub-{subject}', 'ses-{session}',
             'func', 'sub-{subject}_ses-{session}_task-*_acq-*_run-*desc-depth.0.*_hemi-lh.gii').format(**locals())
-    print(fn_template)
+
     fns = glob.glob(fn_template)
 
     rois = cortex.utils.get_roi_verts('odc.{}'.format(subject))
@@ -28,6 +28,7 @@ def main(derivatives,
     for fn in fns:
 
         meta = reg.match(fn).groupdict() 
+        print(meta)
         meta['run'] = int(meta['run'])
 
         mov = pd.read_table(op.join(derivatives, 'spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-{task}_acq-{acq}_run-{run:02d}_confounds.tsv'.format(**meta)))
@@ -46,12 +47,18 @@ def main(derivatives,
         d_r = surface.load_surf_data(fn.replace('hemi-lh', 'hemi-rh')).T
         d = np.concatenate((d_l, d_r), 1)
         print(d.shape)
-        d = pd.DataFrame(clean(d, confounds=confounds_trans.values, standardize='psc'))
+
+        d_dirty = pd.DataFrame(d.copy())
+        d_clean = pd.DataFrame(clean(d_dirty.values, confounds=confounds_trans.values, standardize=False))
 
         
         for key in meta:
-            d[key] = meta[key]
-        d['frame'] = np.arange(len(d))
+            d_clean[key] = meta[key]
+            d_dirty[key] = meta[key]
+        d_clean['frame'] = np.arange(len(d))
+        d_dirty['frame'] = np.arange(len(d))
+
+        d  = pd.concat([d_clean, d_dirty], keys=['cleaned', 'psc'], names=['type', 'vertex'], axis=1)
         
         results.append(d)
 
@@ -61,18 +68,28 @@ def main(derivatives,
 
     results_ = []
 
-    for key in rois:
-        if len(rois[key])> 0:
-            tmp = results.loc[:, rois[key].tolist() + ix_keys]
-            
-            tmp = tmp.pivot_table(index=ix_keys[:-1], 
-                            columns='depth')
-            
-            tmp = pd.concat([tmp], keys=[key], names=['roi'], axis=1)
-            results_.append(tmp)
+    for type, d in results.groupby(level='type', axis=1):
+        for key in rois:
+            if len(rois[key])> 0:
+                tmp = d[type].loc[:, rois[key].tolist() + ix_keys]
+                
+                tmp = tmp.pivot_table(index=ix_keys[:-1], 
+                                columns='depth')
+                
+                tmp = pd.concat([tmp], keys=[(type, key)], names=['type', 'roi'], axis=1)
+                results_.append(tmp)
         
     results = pd.concat(results_, axis=1)
-    results.columns.set_names('vertex', 1, inplace=True)
+
+    all_depth_results = pd.concat([results.groupby(level=['type', 'roi', 'vertex'],
+                                                                  axis=1).mean()],
+                                                 keys=['all'],
+                                                 names=['depth'],
+                                                 axis=1)
+    all_depth_results.columns = all_depth_results.columns.reorder_levels(results.columns.names)
+
+    results = pd.concat([results, all_depth_results], axis=1).sort_index(axis=1)
+
 
     # Filter out vertices where one or more runs/depths has std of 0
     ix = (~(((results.groupby('run').std() == 0).any(0)))).groupby('vertex').all()
