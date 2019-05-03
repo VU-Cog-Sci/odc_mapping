@@ -28,6 +28,8 @@ def main(sourcedata,
 
     zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
 
+    zmap2 = '{derivatives}/modelfitting/glm8/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_left_over_right_zmap{trans_str}.nii.gz'.format(**locals())
+
     #zmap_task = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_task_zmap.nii.gz'.format(**locals())
 
     if subject == 'bm':
@@ -41,7 +43,7 @@ def main(sourcedata,
                          subject, 'T1w', 'anat', 'average')
 
     zmap = image.resample_to_img(zmap, t1w)
-    #zmap_task = image.resample_to_img(zmap_task, t1w)
+    zmap2 = image.resample_to_img(zmap2, t1w)
     mean_epi = image.resample_to_img(mean_epi, t1w)
 
     transform = cortex.xfm.Transform(np.identity(4), t1w)
@@ -55,8 +57,17 @@ def main(sourcedata,
     images = {}
     zmap = zmap.get_data().T
     zmap[zmap == 0] = np.nan
+
+    zmap2 = zmap2.get_data().T
+    zmap2[zmap2 == 0] = np.nan
+
     mask = mask.get_data().T
     images['zmap'] = cortex.Volume2D(zmap,
+                                     mask,
+                                     pc_subject,
+                                     'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
+                                     cmap='BuBkRd_alpha_2D')
+    images['zmap2'] = cortex.Volume2D(zmap2,
                                      mask,
                                      pc_subject,
                                      'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
