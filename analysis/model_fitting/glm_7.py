@@ -52,7 +52,6 @@ def main(sourcedata,
 
     df.sort_values('run', inplace=True)
 
-
     models = []
     for ix, row in df.iterrows():
 
