@@ -51,6 +51,11 @@ def main(sourcedata,
     if run is []:
         run = '[0-9]+'
 
+    if subject in ['ms']:
+        dof = 9
+    else:
+        dof = 6
+
     layout = BIDSLayout(sourcedata)
     derivatives_layout = BIDSLayout(derivatives)
 
@@ -127,6 +132,7 @@ def main(sourcedata,
     
     os.environ['SUBJECTS_DIR'] = op.join(derivatives, 'freesurfer')
 
+
     wf = init_hires_unwarping_wf(name="unwarp_hires_{}_{}_{}".format(subject, session, acquisition),
                               method='topup',
                               bids_layout=layout,
@@ -142,7 +148,7 @@ def main(sourcedata,
                               dura_mask=dura,
                               wm_seg=True,
                               inv2_epi=None,
-                              dof=6,
+                              dof=dof,
                               crop_bolds=True,
                               topup_package='afni',
                               epi_to_t1_package='fsl',

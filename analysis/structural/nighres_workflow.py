@@ -470,9 +470,9 @@ def init_nighres_ds_wf(derivatives='/derivatives',
         ds = pe.Node(DerivativesDataSink(base_directory=derivatives,
                                          out_path_base=out_path_base,
                                          desc=key,
-                                         suffix='hemi-{extra_value}_'+suffix),
+                                         suffix=suffix),
                      name='ds_{}'.format(key))
-        ds.inputs.extra_values = ['left', 'right']
+        ds.inputs.extra_values = ['hemi-left', 'hemi-right']
         wf.connect(inputnode, 't1w', ds, 'source_file')
         wf.connect(inputnode, key, ds, 'in_file')
 
@@ -486,9 +486,9 @@ def init_nighres_ds_wf(derivatives='/derivatives',
 
     ds_thickness = pe.Node(DerivativesDataSink(base_directory=derivatives,
                                                   out_path_base='nighres',
-                                                  suffix='hemi-{extra_value}_thickness'),
+                                                  suffix='thickness'),
                                                   name='ds_thickness')
-    ds_thickness.inputs.extra_values = ['left', 'right']
+    ds_thickness.inputs.extra_values = ['hemi-left', 'hemi-right']
     wf.connect(inputnode, 'thickness', ds_thickness, 'in_file')
     wf.connect(inputnode, 't1w', ds_thickness, 'source_file')
 

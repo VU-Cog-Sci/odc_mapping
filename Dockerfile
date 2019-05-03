@@ -39,17 +39,12 @@ COPY nighres /nighres
 RUN cd /nighres \
     && python3 -m pip install --upgrade pip jcc \
     && ./build.sh \
-    && bash -c "source activate neuro && python setup.py install"
+    && bash -c "source activate neuro && cd /nighres && python setup.py install"
 
-#RUN cd /nighres \
-    #&& bash -c "source activate neuro && conda install jcc" \
-    #&& bash -c "source activate neuro && ./build.sh"
-    ##&& bash -c "source activate neuro && python setup.py install"
-    
+
 COPY ./analysis /src
 COPY nipype.cfg /root/.nipype/nipype.cfg
 
-#RUN bash -c "source activate neuro && pip install fmriprep"
 COPY pymp2rage /pymp2rage
 RUN bash -c "source activate neuro && pip uninstall -y pymp2rage && cd /pymp2rage && python setup.py develop"
 
