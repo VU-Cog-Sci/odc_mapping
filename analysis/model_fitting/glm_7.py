@@ -144,7 +144,7 @@ def main(sourcedata,
         print('CV %d' % (i+1))
         print('Train: {}'.format(train))
         print('Test: {}'.format(test))
-        second_level_model = SecondLevelModel(mask=mask)
+        second_level_model = SecondLevelModel(mask_img=mask)
         second_level_model.fit(list(models_[train]))
 
         left_right_group =second_level_model.compute_contrast(
@@ -157,7 +157,7 @@ def main(sourcedata,
     confounds['task_events'] = confounds.task_events.map({'checkerboard':1, 'fixation':0})
     confounds['subject_label'] = df['run'].astype(int)
 
-    second_level_model = SecondLevelModel(mask=mask)
+    second_level_model = SecondLevelModel(mask_img=mask)
     second_level_model.fit(models, confounds=confounds)
 
     attention_contrast =second_level_model.compute_contrast(first_level_contrast='eye_L - eye_R',
