@@ -96,9 +96,17 @@ def main(sourcedata,
         left_right.to_filename(os.path.join(results_dir, 
                                             'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_over_right_psc.nii.gz'.format(**row)))
 
+        left = model.compute_contrast('eye_L', output_type='z_score')
+        left.to_filename(os.path.join(results_dir, 
+                                      'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_zmap.nii.gz'.format(**row)))
+
         left = model.compute_contrast('eye_L', output_type='effect_size')
         left.to_filename(os.path.join(results_dir, 
                                       'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_psc.nii.gz'.format(**row)))
+
+        right = model.compute_contrast('eye_R', output_type='z_score')
+        right.to_filename(os.path.join(results_dir, 
+                                       'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_right_zmap.nii.gz'.format( **row)))
 
         right = model.compute_contrast('eye_R', output_type='effect_size')
         right.to_filename(os.path.join(results_dir, 
