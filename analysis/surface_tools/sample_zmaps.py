@@ -88,7 +88,3 @@ if __name__ == '__main__':
          subject=args.subject,
          session=args.session,
          workflow_folder='/workflow_folders',)
-         
-
-
-

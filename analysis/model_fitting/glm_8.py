@@ -52,12 +52,14 @@ def main(sourcedata,
 
     df.sort_values('run', inplace=True)
 
+    print(df.iloc[0])
+
     models = []
     for ix, row in df.iterrows():
 
         results_dir = os.path.join(derivatives, 
                                    'modelfitting', 
-                                   'glm7',
+                                   'glm8',
                                    'sub-{}'.format(row['subject']))
         if 'session' in row:
             results_dir = os.path.join(results_dir, 'ses-{}'.format(row['session']))
@@ -81,92 +83,71 @@ def main(sourcedata,
         model = FirstLevelModel(t_r=4,
                                 signal_scaling=False,
                                 subject_label=int(row['run']),
-                                mask=mask)
+                                mask_img=mask)
         paradigm = pd.read_table(row['path_events'])
+        paradigm_ = paradigm.copy()
+        paradigm['trial_type'] = 'stimulation'
+        paradigm['modulation'] = 1
+        paradigm_['modulation'] = paradigm_.trial_type.map({'eye_L':1, 
+                                                            'eye_R':-1})
+        paradigm_['trial_type'] = 'eye'
+        paradigm = pd.concat((paradigm, paradigm_), ignore_index=True)
+
         model.fit(row['path_bold'], paradigm, confounds=confounds_trans)
 
         row['run'] = int(row['run'])
         row = dict(row)
 
-        left_right = model.compute_contrast('eye_L - eye_R', output_type='z_score')
+        left_right = model.compute_contrast('eye', output_type='z_score')
         left_right.to_filename(os.path.join(results_dir,
                                             'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_over_right_zmap.nii.gz'.format(**row)))
 
-        left_right = model.compute_contrast('eye_L - eye_R', output_type='effect_size')
+        left_right = model.compute_contrast('eye', output_type='effect_size')
         left_right.to_filename(os.path.join(results_dir, 
                                             'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_over_right_psc.nii.gz'.format(**row)))
 
-        left = model.compute_contrast('eye_L', output_type='z_score')
-        left.to_filename(os.path.join(results_dir, 
-                                      'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_zmap.nii.gz'.format(**row)))
+        stimulation = model.compute_contrast('stimulation', output_type='effect_size')
+        stimulation.to_filename(os.path.join(results_dir, 
+                                      'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_stimulation_psc.nii.gz'.format(**row)))
 
-        left = model.compute_contrast('eye_L', output_type='effect_size')
-        left.to_filename(os.path.join(results_dir, 
-                                      'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_left_psc.nii.gz'.format(**row)))
-
-        right = model.compute_contrast('eye_R', output_type='z_score')
-        right.to_filename(os.path.join(results_dir, 
-                                       'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_right_zmap.nii.gz'.format( **row)))
-
-        right = model.compute_contrast('eye_R', output_type='effect_size')
-        right.to_filename(os.path.join(results_dir, 
-                                       'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_right_psc.nii.gz'.format( **row)))
+        stimulation = model.compute_contrast('stimulation', output_type='z_score')
+        stimulation.to_filename(os.path.join(results_dir, 
+                                       'sub-{subject}_ses-{session}_task-{task_events}_run-{run:02d}_stimulation_zmap.nii.gz'.format( **row)))
 
         models.append(model)
 
 
 
-    second_level_model = SecondLevelModel(mask=mask)
+    second_level_model = SecondLevelModel(mask_img=mask)
     second_level_model.fit(models)
 
     left_right_group =second_level_model.compute_contrast(
-        first_level_contrast='eye_L - eye_R',
+        first_level_contrast='eye',
         output_type='z_score')
     left_right_group.to_filename(os.path.join(results_dir, 
                                               'sub-{}_ses-{}_left_over_right_zmap.nii.gz'.format(row['subject'], 
                                                                                                  row['session'])))
 
     left_right_group =second_level_model.compute_contrast(
-        first_level_contrast='eye_L - eye_R',
+        first_level_contrast='eye',
         output_type='effect_size')
     left_right_group.to_filename(os.path.join(results_dir, 
                                               'sub-{}_ses-{}_left_over_right_effect_size.nii.gz'.format(row['subject'], 
                                                                                                  row['session'])))
 
-    os.makedirs(os.path.join(results_dir, 'cv'), exist_ok=True)
+    stimulation_group =second_level_model.compute_contrast(
+        first_level_contrast='stimulation',
+        output_type='z_score')
+    left_right_group.to_filename(os.path.join(results_dir, 
+                                              'sub-{}_ses-{}_stimulation_zmap.nii.gz'.format(row['subject'], 
+                                                                                                 row['session'])))
 
-    kf = KFold(n_splits=len(models) // 2)
-
-    models_ = np.array(models)
-
-    for i, (train, test) in enumerate(kf.split(models_)):
-
-        print('CV %d' % (i+1))
-        print('Train: {}'.format(train))
-        print('Test: {}'.format(test))
-        second_level_model = SecondLevelModel(mask_img=mask)
-        second_level_model.fit(list(models_[train]))
-
-        left_right_group =second_level_model.compute_contrast(
-            first_level_contrast='eye_L - eye_R',
-            output_type='z_score')
-        left_right_group.to_filename(os.path.join(results_dir, 'cv',
-                                                  'sub-{}_ses-{}_cv-{}_left_over_right_zmap.nii.gz'.format(row['subject'], row['session'], i+1)))
-
-    confounds = df[['task_events']]
-    confounds['task_events'] = confounds.task_events.map({'checkerboard':1, 'fixation':0})
-    confounds['subject_label'] = df['run'].astype(int)
-
-    second_level_model = SecondLevelModel(mask_img=mask)
-    second_level_model.fit(models, confounds=confounds)
-
-    attention_contrast =second_level_model.compute_contrast(first_level_contrast='eye_L - eye_R',
-                                                            second_level_contrast='task_events',
-                                                            output_type='z_score')
-
-    attention_contrast.to_filename(op.join(results_dir,
-                                                  'sub-{}_ses-{}_left_over_right_task_zmap.nii.gz'.format(row['subject'],
-                                                                                                                row['session'])))
+    stimulation_group =second_level_model.compute_contrast(
+        first_level_contrast='stimulation',
+        output_type='effect_size')
+    left_right_group.to_filename(os.path.join(results_dir, 
+                                              'sub-{}_ses-{}_stimulation_effect_size.nii.gz'.format(row['subject'], 
+                                                                                                 row['session'])))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
