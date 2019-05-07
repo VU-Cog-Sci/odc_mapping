@@ -1,15 +1,22 @@
 import numpy as np
 import scipy.stats as ss
 from scipy import optimize
+from sklearn.linear_model import Ridge
 
 class BinocularModelFitter(object):
     
     def __init__(self):
         pass
     
-    def fit(self, data, X):
+    def fit(self, data, X, ridge=True, alpha=1.0):
         
-        beta, residuals, _, _ = np.linalg.lstsq(X, data, rcond=None)
+        if ridge:
+            clf = Ridge(alpha=alpha).fit(X, data)
+            beta = clf.coef_.T
+            residuals = ((clf.predict(X) - data)**2).sum(0)
+        else:
+            beta, residuals, _, _ = np.linalg.lstsq(X, data, rcond=None)
+
         self.W = beta.T
         tau_ = np.sqrt(residuals / (len(data) - 1))[:, np.newaxis]
                                
@@ -48,7 +55,12 @@ class BinocularModelFitter(object):
         
         print(x0.shape, len(bounds))
         
-        pars = optimize.minimize(loglikelihood_wrapper, x0=x0, bounds=bounds, )
+        pars = optimize.minimize(loglikelihood_wrapper,
+                                 x0=x0,
+                                 bounds=bounds,
+                                 method='L-BFGS-B',
+                                 options={'disp':True,'maxfun': 15000000, 'factr': 10})
+
         
         self.rho_ = pars.x[0]
         self.tau_ = pars.x[1:-1][:, np.newaxis]
