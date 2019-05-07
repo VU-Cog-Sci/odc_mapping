@@ -3,23 +3,25 @@ import cortex
 import os.path as op
 import pickle as pkl
 import numpy as np
+import pandas as pd
 
 def main(derivatives,
          subject):
 
     coordinates = []
     for hemi in ['lh', 'rh']:
-        with open(op.join(derivatives, 'coordinate_patches', 'sub-{subject}',
+        coord = pd.read_pickle(op.join(derivatives, 'coordinate_patches', 'sub-{subject}',
                           'anat',
-                          'sub-{subject}_hemi-{hemi}_coordinatepatch.pkl').format(**locals()),
-                          'rb') as f:
-            coordinates.append(pkl.load(f)['coordinates'])
+                          'sub-{subject}_hemi-{hemi}_coordinatepatch.pkl.gz').format(**locals()))
+        coordinates.append(coord)
 
-    coordinates = np.hstack(coordinates)
+    coordinates = pd.concat(coordinates, axis=0, ignore_index=True)
+    print(coordinates.shape)
 
-    x = cortex.Vertex(coordinates[0], 'odc.{}'.format(subject),
+    print(coordinates['x'].values)
+    x = cortex.Vertex(coordinates['x'].values[np.newaxis, :], 'odc.{}'.format(subject),
                       cmap='BROYG', vmin=10, vmax=60)
-    y = cortex.Vertex(coordinates[1], 'odc.{}'.format(subject),
+    y = cortex.Vertex(coordinates['y'].values[np.newaxis, :], 'odc.{}'.format(subject),
                       cmap='BROYG',
                       vmin=-25, vmax=25)
 
