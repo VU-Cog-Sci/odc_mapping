@@ -10,7 +10,10 @@ import os
 def main(sourcedata,
          derivatives,
          subject,
-         session):
+         session,
+         n_vertices):
+
+    print(n_vertices)
 
     task = 'checkerboard'
 
@@ -47,8 +50,8 @@ def main(sourcedata,
     results = []
     for (roi, depth), _ in df.loc[:, ['V1l', 'V1r']].groupby(level=['roi', 'depth'], axis=1):
         print(roi, depth)
-        for n_vertices in [40]:
-            print(n_vertices)
+        for n_vertices_ in n_vertices:
+            print(n_vertices_)
             for i, run in enumerate(runs[::2]):
                 train = [run, run+1]
                 test = runs.copy()
@@ -72,7 +75,7 @@ def main(sourcedata,
                 df_train =  (df_train - df_train.mean()) / df_train.std()
                 r = (X_ * df_train).sum(0) / len(X_)
 
-                ix = r.abs().sort_values()[-n_vertices:].index
+                ix = r.abs().sort_values()[-n_vertices_:].index
 
                 print('fitting')
                 fitter.fit(df_train.loc[:, ix].values, X_train)
@@ -97,7 +100,7 @@ def main(sourcedata,
                 print(accuracy)
 
                 r['roi'] = roi
-                r['n_vertices'] = n_vertices
+                r['n_vertices'] = n_vertices_
                 r['depth'] = depth
                 r['fold'] = i+i
 
@@ -135,9 +138,15 @@ if __name__ == '__main__':
                         type=str,
                         default='/derivatives',
                         help="Folder where derivatives reside")
+    parser.add_argument('--n_vertices',
+                        nargs='+',
+                        type=int,
+                        default=[40])
+
     args = parser.parse_args()
 
     main(args.sourcedata,
          args.derivatives, 
          subject=args.subject,
-         session=args.session)
+         session=args.session,
+         n_vertices=args.n_vertices)
