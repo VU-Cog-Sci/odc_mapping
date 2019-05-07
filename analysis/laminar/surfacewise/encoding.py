@@ -98,20 +98,27 @@ class BinocularModelFitter(object):
             p_ds = self.mv_norm.pdf(residuals)
 
         # Normalize
-        p_ds /= p_ds.sum(1)[:, np.newaxis, :] * (stimulus[1] - stimulus[0])
+        p_ds /= p_ds.sum(1)[:, np.newaxis, :]
 
         return stimulus, p_ds        
     
     
     def get_map_stimulus_timeseries(self, data, stimulus_range=None):
-        s, p_ds = self.decode(data, stimulus_range)
-        
-        
-        return (s[np.newaxis, :, np.newaxis] * p_ds).sum(1)
+        s, p_ds = self.decode(data, stimulus_range=stimulus_range)
+
+        return (s[np.newaxis, :, np.newaxis] * p_ds).sum(1) / p_ds.sum(1)
+
     
     
-    def get_std_stimulus_timeseries(self, data, stimulus_range=None):
-        s, p_ds = self.decode(data, stimulus_range)
+    def get_map_sd_stimulus_timeseries(self, data, stimulus_range=None):
+        
+        s, p_ds = self.decode(data, stimulus_range=stimulus_range)        
+        map = self.get_map_stimulus_timeseries(data, stimulus_range=stimulus_range)
+        
+        dev = (s[np.newaxis, :, np.newaxis] - map[:, np.newaxis, :])**2
+        sd = np.sqrt(((dev * p_ds) / p_ds.sum(1)[:, np.newaxis, :]).sum(1))
+        
+        return s, map, sd
         
         
-        return (s[np.newaxis, :, np.newaxis] * p_ds).sum(1)
+        
