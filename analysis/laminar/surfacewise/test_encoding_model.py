@@ -8,7 +8,7 @@ import os
 
 sourcedata = '/data/odc/sourcedata'
 derivatives = '/data/odc/derivatives'
-subject = 'tr'
+subject = 'bm'
 session = 'odc'
 
 events = pd.read_csv(op.join(sourcedata, 
@@ -40,7 +40,8 @@ runs = df.index.get_level_values("run").unique().sort_values().tolist()
 results = []
 for (roi, depth), _ in df.loc[:, ['V1l', 'V1r']].groupby(level=['roi', 'depth'], axis=1):
     print(roi, depth)
-    for n_vertices in [25, 50, 100, 250, 500]:
+    #for n_vertices in [25, 40, 60, 80, 100]:
+    for n_vertices in [40]:
         print(n_vertices)
         for i, run in enumerate(runs[::2]):
             train = [run, run+1]
@@ -68,25 +69,32 @@ for (roi, depth), _ in df.loc[:, ['V1l', 'V1r']].groupby(level=['roi', 'depth'],
             ix = r.abs().sort_values()[-n_vertices:].index
 
             print('fitting')
-            fitter.fit(df_train.loc[:, ix].values, X_train)
+            fitter.fit(df_train.loc[:, ix].values, X_train, alpha=0.1)
             print('done')
+            print(fitter.rho_, fitter.tau_[:15], fitter.sigma2_, (fitter.W.dot(fitter.W.T) * fitter.sigma2_)[:5, :5])
 
 
+            #df_test = (df_test - df_test.mean()) / df_test.std()
             df_test = (df_test - df_test.mean()) / df_test.std()
-            _, map = fitter.decode(df_test.loc[:, ix].values, stimulus_range=np.array([0, 1]))
+            _, stimulus_p = fitter.decode(df_test.loc[:, ix].values, stimulus_range=np.array([0, 1]))
 
             # Bayes factor for stimulus population 1  being on and population 2 being off
             # versus population 1 off and population 2 on.
-            bf = (map[:, 1, 0] + map[:, 0, 1]) / (map[:, 0, 1] + map[:, 0, 0])
+            bf = (stimulus_p[:, 1, 0] + stimulus_p[:, 0, 1]) / (stimulus_p[:, 1, 1] + stimulus_p[:, 0, 0])
 
 
             X_ = X_test[:, 0] - X_test[:, 1]
             accuracy = (((X_ == 1) & (bf > 1)).sum() + ((X_ == -1) & (bf < 1)).sum()) / np.in1d(X_, [-1,1]).sum()
             print(accuracy)
 
+            _, map, sd = fitter.get_map_sd_stimulus_timeseries(df_test.loc[:, ix].values, stimulus_range=np.linspace(-10, 10, 100))
+
+
 
             r = pd.concat((pd.DataFrame(bf, index=df_test.index, columns=['bayes factor']),
-                           pd.DataFrame(X_test, index=df_test.index, columns=['left eye', 'right eye'])),
+                           pd.DataFrame(X_test, index=df_test.index, columns=['left eye', 'right eye']),
+                           pd.DataFrame(sd, index=df_test.index, columns=['SD(left eye)', 'SD(right eye)']),
+                           pd.DataFrame(map, index=df_test.index, columns=['activation left eye', 'activation right eye'])),
                           axis=1)
 
             r['roi'] = roi
