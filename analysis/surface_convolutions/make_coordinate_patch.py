@@ -16,7 +16,7 @@ def main(derivatives,
     freesurfer_subject_dir = op.join(derivatives, 'freesurfer')
 
         
-    for hemi in ['lh', 'rh'][:1]:
+    for hemi in ['lh', 'rh']:
         (left_surface_pts, _), _ = cortex.db.get_surf('odc.{}'.format(subject), 'pia')
         size_left_surface = len(left_surface_pts)
         
