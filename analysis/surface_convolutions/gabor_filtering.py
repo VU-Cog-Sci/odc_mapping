@@ -20,27 +20,23 @@ def main(derivatives,
     max_frequency = 1.
     min_frequency = 1/10.
     n_frequencies = 20
+    n_orientations = 8
     scale_factor = (min_frequency/max_frequency)**(-1/(n_frequencies-1))
     frequencies_mm = scale_factor**-np.arange(0, n_frequencies) * max_frequency
-    orientations = np.linspace(0, np.pi, 4, endpoint=False)
+    orientations = np.linspace(0, np.pi, n_orientations, endpoint=False)
 
     frequencies_pix = frequencies_mm * grid_resolution
 
     for hemi in ['lh', 'rh']:
 
-        with open(op.join(derivatives, 'coordinate_patches',
-                          'sub-{subject}',
-                          'anat',
-                          'sub-{subject}_hemi-{hemi}_coordinatepatch.pkl').format(**locals()),
-                          'rb') as f:
-            patch = pkl.load(f)
-
-        xy = pd.DataFrame({'x':patch['coordinates'][0, :],
-                           'y':patch['coordinates'][1, :]})
+        xy = pd.read_pickle(op.join(derivatives, 'coordinate_patches', 'sub-{subject}',
+                            'anat', 'sub-{subject}_hemi-{hemi}_coordinatepatch.pkl').format(**locals()))
 
         depths = np.round(np.linspace(0, 1, 8), 3)[1:-1]
 
         pb = tqdm(total=len(frequencies_pix) * len(orientations) * len(depths))
+
+        mask_name = 'V1'+hemi[:1]
 
         results = []
 
@@ -51,16 +47,18 @@ def main(derivatives,
                 format(**locals())
             zmap_v = surface.load_surf_data(zmap)
             zmap = pd.DataFrame(zmap_v, columns=['z_value'])
-            zmap = zmap[patch['vertex_mask']]
             df = zmap.merge(xy, left_index=True, right_index=True)
+            df = df.loc[(df.z == 0) & df[mask_name]]
 
             x_grid, y_grid = np.meshgrid(np.arange(df['x'].min(), df['x'].max(), grid_resolution),
                                          np.arange(df['y'].min(), df['y'].max(), grid_resolution))
 
+
             data = interpolate.griddata(df[['x', 'y']],
                                         df['z_value'],
-                                        np.vstack((x_grid.ravel(), y_grid.ravel())).T).reshape(x_grid.shape)
-
+                                        np.vstack((x_grid.ravel(), y_grid.ravel())).T,
+                                        fill_value=0,
+                                        method='linear').reshape(x_grid.shape)
 
 
             for freq, ori in product(frequencies_pix, orientations):
@@ -68,6 +66,7 @@ def main(derivatives,
                 filtered_real = ndi.convolve(data, np.real(kernel), mode='wrap')
                 filtered_imag = ndi.convolve(data, np.imag(kernel), mode='wrap')
                 power = np.sqrt(filtered_real**2 + filtered_imag**2)
+                power[data == 0] = 0
 
                 power = pd.DataFrame([power.ravel()],
                                      index=pd.MultiIndex.from_tuples([(depth, freq/grid_resolution, ori)], names=['depth', 'frequency', 'orientation']))
@@ -75,11 +74,16 @@ def main(derivatives,
                 pb.update()
 
         results = pd.concat(results, axis=0)
-        results_vertex = interpolate.griddata(np.vstack((x_grid.ravel(), y_grid.ravel())).T,results.T, xy.loc[zmap.index])
+
+        results_vertex = interpolate.griddata(np.vstack((x_grid.ravel(),
+                                                         y_grid.ravel())).T,
+                                              results.T,
+                                              df[['x', 'y']])
 
         results_vertex = pd.DataFrame(results_vertex.T,
                                       index=results.index,
-                                      columns=zmap.index)
+                                      columns=df.index)
+        results_vertex.loc[:, df[df['z_value'] == 0].index] = np.nan
 
         results_dir = op.join(derivatives, 'zmap_spatfreq',
                                          'sub-{subject}',
@@ -92,6 +96,7 @@ def main(derivatives,
                                          'sub-{subject}_ses-{session}_hemi-{hemi}_energies.pkl').format(**locals()))
 
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("subject", 
@@ -100,9 +105,12 @@ if __name__ == '__main__':
     parser.add_argument("session", 
                         type=str,
                         help="subject to process")
-
+    parser.add_argument("--derivatives", 
+                        type=str,
+                        default='/derivatives',
+                        help="Folder where derivatives reside")
     args = parser.parse_args()
 
-    main('/data/odc/derivatives',
+    main(derivatives=args.derivatives,
          subject=args.subject,
          session=args.session)
