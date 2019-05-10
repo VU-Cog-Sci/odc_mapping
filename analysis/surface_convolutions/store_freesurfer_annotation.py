@@ -32,7 +32,7 @@ def main(derivatives,
                               '{}.pycortex.annot'.format(hemi))
 
         
-        if hemi == 'l':
+        if hemi == 'lh':
             nb.freesurfer.write_annot(target_path,
                                       labels[:len(left[0])],
                                       colors,
