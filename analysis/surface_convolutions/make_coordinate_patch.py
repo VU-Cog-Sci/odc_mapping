@@ -65,11 +65,12 @@ def main(derivatives,
         df['y'] = df['y'].astype(float)
         df['eccentricity'] = df['eccentricity'].astype(float)
 
-        ix = (~df['x'].isnull())
+        ix = (~df['x'].isnull()) & (df['r2'] > 0.15)
         #beta, _, _, _ = np.linalg.lstsq(df.loc[ix, ['x', 'y']].values, df.loc[ix, 'eccentricity'].values)
         X = sm.add_constant(df.loc[ix, ['x_flat', 'y_flat']])
         r = sm.WLS(df.loc[ix, ['eccentricity']], X, df.loc[ix, 'r2']).fit()
         beta = r.params[['x_flat', 'y_flat']].values
+        print(beta)
 
         y_ = (beta[1], -beta[0]) / np.linalg.norm((beta[0], beta[1]))
         df['x'] = (beta / np.linalg.norm(beta)).dot(df[['x_flat', 'y_flat']].T)
@@ -83,8 +84,8 @@ def main(derivatives,
         r = sm.OLS(pts[ix, [2]], X).fit()
         beta = r.params['y']
         print(beta)
-        # This is not zero because of subject tr
-        if beta < 0.1:
+
+        if beta < 0.0:
             print('flip')
             df['y'] = -df['y']
 
