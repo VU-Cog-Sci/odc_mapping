@@ -33,7 +33,43 @@ def main(sourcedata,
                                 'depth_sampled_surfaces/sub-{subject}/sub-{subject}_ses-{session}_depth_sampled_data.pkl.gz'.format(**locals())))
     df = df.loc[:, 'cleaned']
 
+    df.loc[:, ['V1l', 'V1r']]
+
     df.index = df.index.droplevel(['subject' ,'session', 'acq'])
+
+
+    v1_both = df.loc[:, ['V1l', 'V1r']].copy()
+    v1_both.columns.set_levels(['V1'] * v1_both.shape[1], level=0, verify_integrity=False, inplace=True)
+
+    df = pd.concat((df, v1_both), axis=1)
+
+
+    for hemi in ['lh', 'rh']:
+        energies = pd.read_pickle(op.join(derivatives,
+                                          'zmap_spatfreq',
+                                          'sub-{subject}',
+                                          'ses-{session}',
+                                          'func',
+                                          'sub-{subject}_ses-{session}_hemi-{hemi}_energies.pkl').format(**locals()))
+        max_frequency = energies.groupby(['depth', 'frequency']).sum().groupby('depth', as_index=True).apply(lambda d: d.reset_index('depth', drop=True).idxmax())
+        max_wl = 1. / max_frequency
+
+        tmp = df.loc[:, 'V1{}'.format(hemi[:1])].T
+
+        tmp = pd.concat([tmp.loc[np.where((max_wl.mean()) < 5.)].T],
+                        axis=1,
+                        keys=['V1{}_shortwl'.format(hemi[:1])],
+                        names=['roi'])
+
+        df = pd.concat((df, tmp), axis=1)
+
+
+    v1_both = df.loc[:, ['V1l_shortwl', 'V1r_shortwl']].copy()
+    v1_both.columns.set_levels(['V1_shortwl'] * v1_both.shape[1], level=0, verify_integrity=False, inplace=True)
+
+
+    df = pd.concat((df, v1_both), axis=1)
+    print(df.head())
 
     events_shifted = events.copy()
     events_shifted['onset'] += 4
