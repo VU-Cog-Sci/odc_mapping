@@ -73,12 +73,12 @@ def main(sourcedata,
 
         # Solve indexing issue (start at first vertex lh versus rh)
         if hemi == 'lh':
-            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns]
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns].T
         elif hemi == 'rh':
-            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns + n_left_vertices]
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns + n_left_vertices].T
 
 
-        tmp = pd.concat([tmp.loc[np.where((max_wl.mean()) < 5.)].T],
+        tmp = pd.concat([tmp],
                         axis=1,
                         keys=['V1{}_shortwl'.format(hemi[:1])],
                         names=['roi'])
