@@ -73,9 +73,9 @@ def main(sourcedata,
 
         # Solve indexing issue (start at first vertex lh versus rh)
         if hemi == 'lh':
-            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns].T
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 4].columns].T
         elif hemi == 'rh':
-            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns + n_left_vertices].T
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 4].columns + n_left_vertices].T
 
 
         tmp = pd.concat([tmp],
@@ -92,6 +92,7 @@ def main(sourcedata,
 
     df = pd.concat((df, v1_both), axis=1)
     print(df.head())
+    print(df.groupby(level='roi', axis=1).size())
 
     events_shifted = events.copy()
     events_shifted['onset'] += 4
