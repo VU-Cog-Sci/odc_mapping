@@ -86,7 +86,7 @@ def main(sourcedata,
     runs = df.index.get_level_values("run").unique().sort_values().tolist()
 
     results = []
-    for (roi, depth), _ in df.loc[:, ['V1l', 'V1r']].groupby(level=['roi', 'depth'], axis=1):
+    for (roi, depth), _ in df.groupby(level=['roi', 'depth'], axis=1):
         print(roi, depth)
         for n_vertices_ in n_vertices:
             print(n_vertices_)
