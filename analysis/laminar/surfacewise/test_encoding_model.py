@@ -14,7 +14,8 @@ def main(sourcedata,
          derivatives,
          subject,
          session,
-         n_vertices):
+         n_vertices,
+         description):
 
     # get n vertices in left hemisphere
     # This is necessary to solve indexing-issue
@@ -28,6 +29,7 @@ def main(sourcedata,
     n_left_vertices = surface.load_surf_data(fn).shape[0]
 
     print(n_vertices)
+    print(description)
 
     task = 'checkerboard'
 
@@ -174,7 +176,7 @@ def main(sourcedata,
     if not op.exists(out_dir):
         os.makedirs(out_dir)
 
-    results.to_pickle(op.join(out_dir, 'sub-{subject}_desc-encodingaccuracy.pkl.gz').format(**locals()))
+    results.to_pickle(op.join(out_dir, 'sub-{subject}_desc-{description}_encodingaccuracy.pkl.gz').format(**locals()))
 
 
 if __name__ == '__main__':
@@ -199,6 +201,9 @@ if __name__ == '__main__':
                         nargs='+',
                         type=int,
                         default=[40])
+    parser.add_argument('--description',
+                        type=str,
+                        default='none')
 
     args = parser.parse_args()
 
@@ -206,4 +211,5 @@ if __name__ == '__main__':
          args.derivatives, 
          subject=args.subject,
          session=args.session,
-         n_vertices=args.n_vertices)
+         n_vertices=args.n_vertices,
+         description=args.description)
