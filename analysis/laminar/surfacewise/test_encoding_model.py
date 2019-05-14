@@ -19,14 +19,13 @@ def main(sourcedata,
 
     # get n vertices in left hemisphere
     # This is necessary to solve indexing-issue
-    fn = op.join(derivatives,
-                 'sampled_giis',
-                 'sub-{subject}',
-                 'ses-{session}',
-                 'func',
-                 'sub-{subject}_ses-{session}_task-*_acq-07_run-02_desc-depth.0.143_hemi-lh.gii').format(**locals())
-    fn = glob.glob(fn)[0]
-    n_left_vertices = surface.load_surf_data(fn).shape[0]
+    tmp = pd.read_pickle(op.join(derivatives,
+                           'coordinate_patches',
+                         'sub-{subject}',
+                           'anat',
+                           'sub-{subject}_hemi-lh_coordinatepatch.pkl').format(**locals()))
+
+    n_left_vertices = tmp.shape[0]
 
     print(n_vertices)
     print(description)
