@@ -6,12 +6,26 @@ import os.path as op
 from sklearn.model_selection import LeaveOneGroupOut
 from nistats.design_matrix import make_first_level_design_matrix
 import os
+import os.path as op
+import glob
+from nilearn import surface
 
 def main(sourcedata,
          derivatives,
          subject,
          session,
          n_vertices):
+
+    # get n vertices in left hemisphere
+    # This is necessary to solve indexing-issue
+    fn = op.join(derivatives,
+                 'sampled_giis',
+                 'sub-{subject}',
+                 'ses-{session}',
+                 'func',
+                 'sub-{subject}_ses-{session}_task-*_acq-07_run-02_desc-depth.0.143_hemi-lh.gii').format(**locals())
+    fn = glob.glob(fn)[0]
+    n_left_vertices = surface.load_surf_data(fn).shape[0]
 
     print(n_vertices)
 
@@ -21,10 +35,10 @@ def main(sourcedata,
         task = 'fixation'
 
     events = pd.read_csv(op.join(sourcedata, 
-                                   'sub-{subject}', 
-                                   'ses-{session}',
-                                   'func',
-                                   'sub-{subject}_ses-{session}_task-{task}_acq-07_run-02_events.tsv').format(**locals()),
+                                 'sub-{subject}',
+                                 'ses-{session}',
+                                 'func',
+                                 'sub-{subject}_ses-{session}_task-{task}_acq-07_run-02_events.tsv').format(**locals()),
                          sep='\t')
 
     frametimes = np.linspace(0, 66*4, 66, endpoint=False)
@@ -33,7 +47,7 @@ def main(sourcedata,
                                 'depth_sampled_surfaces/sub-{subject}/sub-{subject}_ses-{session}_depth_sampled_data.pkl.gz'.format(**locals())))
     df = df.loc[:, 'cleaned']
 
-    df.loc[:, ['V1l', 'V1r']]
+    df = df.loc[:, ['V1l', 'V1r']]
 
     df.index = df.index.droplevel(['subject' ,'session', 'acq'])
 
@@ -55,6 +69,13 @@ def main(sourcedata,
         max_wl = 1. / max_frequency
 
         tmp = df.loc[:, 'V1{}'.format(hemi[:1])].T
+
+        # Solve indexing issue (start at first vertex lh versus rh)
+        if hemi == 'lh':
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns]
+        elif hemi == 'rh':
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns + n_left_vertices]
+
 
         tmp = pd.concat([tmp.loc[np.where((max_wl.mean()) < 5.)].T],
                         axis=1,
@@ -84,7 +105,7 @@ def main(sourcedata,
     runs = df.index.get_level_values("run").unique().sort_values().tolist()
 
     results = []
-    for (roi, depth), _ in df.loc[:, ['V1l', 'V1r']].groupby(level=['roi', 'depth'], axis=1):
+    for (roi, depth), _ in df.groupby(level=['roi', 'depth'], axis=1):
         print(roi, depth)
         for n_vertices_ in n_vertices:
             print(n_vertices_)
