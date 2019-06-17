@@ -20,8 +20,8 @@ def main(derivatives,
     grid_resolution = .35
     max_frequency = 1.
     min_frequency = 1/10.
-    n_frequencies = 20
-    n_orientations = 8
+    n_frequencies = 50
+    n_orientations = 16
     scale_factor = (min_frequency/max_frequency)**(-1/(n_frequencies-1))
     frequencies_mm = scale_factor**-np.arange(0, n_frequencies) * max_frequency
     orientations = np.linspace(0, np.pi, n_orientations, endpoint=False)
@@ -63,9 +63,8 @@ def main(derivatives,
 
 
             pars = [(freq, ori) for freq, ori in product(frequencies_pix, orientations)]
-            pb = tqdm(total=len(pars))
 
-            n_jobs = 12
+            n_jobs = 16
 
             with sharedmem.MapReduce(np=n_jobs) as pool:
                 def reduce(r):
@@ -78,14 +77,14 @@ def main(derivatives,
                     filtered_real = ndi.convolve(data, np.real(kernel), mode='wrap')
                     filtered_imag = ndi.convolve(data, np.imag(kernel), mode='wrap')
                     power = np.sqrt(filtered_real**2 + filtered_imag**2)
-                    power[data == 0] = 0
+                    power[data == 0] = np.nan
 
                     power = pd.DataFrame([power.ravel()],
                                          index=pd.MultiIndex.from_tuples([(depth, freq/grid_resolution, ori)], names=['depth', 'frequency', 'orientation']))
 
                     return power
 
-                results = pool.map(get_power, pars, reduce)
+                results += pool.map(get_power, pars, reduce)
 
         results = pd.concat(results, axis=0)
 
