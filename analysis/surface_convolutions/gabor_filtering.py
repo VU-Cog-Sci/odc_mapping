@@ -10,6 +10,7 @@ from itertools import product
 from tqdm import tqdm
 from skimage.filters import gabor_kernel
 import scipy.ndimage as ndi
+import sharedmem
 
 
 def main(derivatives,
@@ -61,17 +62,30 @@ def main(derivatives,
                                         method='linear').reshape(x_grid.shape)
 
 
-            for freq, ori in product(frequencies_pix, orientations):
-                kernel = gabor_kernel(freq, ori, n_stds=3)
-                filtered_real = ndi.convolve(data, np.real(kernel), mode='wrap')
-                filtered_imag = ndi.convolve(data, np.imag(kernel), mode='wrap')
-                power = np.sqrt(filtered_real**2 + filtered_imag**2)
-                power[data == 0] = 0
+            pars = [(freq, ori) for freq, ori in product(frequencies_pix, orientations)]
+            pb = tqdm(total=len(pars))
 
-                power = pd.DataFrame([power.ravel()],
-                                     index=pd.MultiIndex.from_tuples([(depth, freq/grid_resolution, ori)], names=['depth', 'frequency', 'orientation']))
-                results.append(power)
-                pb.update()
+            n_jobs = 12
+
+            with sharedmem.MapReduce(np=n_jobs) as pool:
+                def reduce(r):
+                    pb.update()
+                    return r
+
+                def get_power(pars):
+                    freq, ori = pars
+                    kernel = gabor_kernel(freq, ori, n_stds=3)
+                    filtered_real = ndi.convolve(data, np.real(kernel), mode='wrap')
+                    filtered_imag = ndi.convolve(data, np.imag(kernel), mode='wrap')
+                    power = np.sqrt(filtered_real**2 + filtered_imag**2)
+                    power[data == 0] = 0
+
+                    power = pd.DataFrame([power.ravel()],
+                                         index=pd.MultiIndex.from_tuples([(depth, freq/grid_resolution, ori)], names=['depth', 'frequency', 'orientation']))
+
+                    return power
+
+                results = pool.map(get_power, pars, reduce)
 
         results = pd.concat(results, axis=0)
 
