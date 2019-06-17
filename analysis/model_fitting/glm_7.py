@@ -9,6 +9,7 @@ from nilearn import image
 from sklearn import decomposition
 from sklearn.model_selection import KFold
 import numpy as np
+from nistats.design_matrix import make_first_level_design_matrix
 
 def main(sourcedata,
          derivatives,
@@ -83,7 +84,19 @@ def main(sourcedata,
                                 subject_label=int(row['run']),
                                 mask=mask)
         paradigm = pd.read_table(row['path_events'])
-        model.fit(row['path_bold'], paradigm, confounds=confounds_trans)
+
+        tr = 4
+        frame_times = np.arange(0, len(confounds)*tr, tr)
+
+        confounds_trans.set_index(frame_times, drop=True, inplace=True,)
+        X = make_first_level_design_matrix(frame_times, paradigm, drift_model=None, drift_order=0)
+        X = pd.concat((X, confounds_trans), axis=1)
+
+        X['eye_L'] /= X['eye_L'].max()
+        X['eye_R'] /= X['eye_R'].max()
+              
+        model.fit(row['path_bold'], design_matrices=X)
+
 
         row['run'] = int(row['run'])
         row = dict(row)
@@ -178,10 +191,24 @@ if __name__ == '__main__':
                         type=str,
                         default='*',
                         help="subject to process")
+    parser.add_argument("session", 
+                        type=str,
+                        default='*',
+                        help="subject to process")
+    parser.add_argument("--sourcedata", 
+                        nargs='?',
+                        default='/data/odc/sourcedata',
+                        type=str,
+                        help="Sourcedata directory")
+    parser.add_argument("--derivatives", 
+                        nargs='?',
+                        default='/data/odc/derivatives',
+                        type=str,
+                        help="Sourcedata directory")
     args = parser.parse_args()
 
-    main('/sourcedata/ds-odc', 
-         '/derivatives',
+    main(args.sourcedata, 
+         args.derivatives,
          subject=args.subject,
          session=args.session,
          tmp_dir='/workflow_folders')
