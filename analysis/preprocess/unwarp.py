@@ -51,7 +51,7 @@ def main(sourcedata,
     if run is []:
         run = '[0-9]+'
 
-    if subject in ['ms']:
+    if subject in ['ms', 'bm']:
         dof = 9
     else:
         dof = 6
