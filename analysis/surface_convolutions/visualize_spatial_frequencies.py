@@ -24,10 +24,15 @@ def main(derivatives,
 
 
     for hemi, surf in zip(['lh', 'rh'], [left_surface, right_surface]):
-        energies = op.join(derivatives, 'zmap_spatfreq', 'sub-{subject}', 'ses-{session}',
-                       'func', 'sub-{subject}_ses-{session}_hemi-{hemi}_energies.pkl').format(subject=subject,
-                                                                                              session=session,
-                                                                                              hemi=hemi)
+        energies = op.join(derivatives,
+                           'zmap_spatfreq',
+                           'sub-{subject}',
+                           'ses-{session}',
+                           'func',
+                           'sub-{subject}_ses-{session}_hemi-{hemi}_energies.pkl').format(subject=subject, session=session, hemi=hemi)
+        xy = pd.read_pickle(op.join(derivatives, 'coordinate_patches', 'sub-{subject}',
+                            'anat', 'sub-{subject}_hemi-{hemi}_coordinatepatch.pkl').format(**locals()))
+
         energies = pd.read_pickle(energies)
 
         max_frequency = energies.groupby(['depth', 'frequency']).sum().groupby('depth', as_index=True).apply(lambda d: d.reset_index('depth', drop=True).idxmax())
@@ -40,7 +45,7 @@ def main(derivatives,
 
         for depth, d in energies.groupby('depth'):
             tmp = d.loc[(depth, max_frequency.loc[depth]), :].idxmax()
-            tmp = tmp.apply(lambda x: x[1] if not x is np.nan else None)
+            tmp = tmp.apply(lambda x: x[2] if not x is np.nan else None)
             tmp = pd.DataFrame(tmp,
                                columns=pd.Index([depth], name='depth')).T
             tmp.columns = energies.columns
@@ -54,13 +59,9 @@ def main(derivatives,
         zmaps[hemi] = np.array(zmaps[hemi])
         max_orientations[hemi] = pd.concat(max_orientations[hemi])
 
-        mask = np.zeros(len(surf.pts))
-        mask[energies.columns] = True
-
-        ss = surf.create_subsurface(mask.astype(bool))
-
-        max_wavelengths[hemi]  = ss.lift_subsurface_data(max_wavelengths[hemi].values)
-        max_orientations[hemi] = ss.lift_subsurface_data(max_orientations[hemi].values)
+        ss = pd.DataFrame([], columns=np.arange(surf.pts.shape[0]))
+        max_wavelengths[hemi]  = pd.concat((ss, max_wavelengths[hemi])).values
+        max_orientations[hemi] = pd.concat((ss, max_orientations[hemi])).values
 
     print(max_wavelengths['lh'].shape, max_wavelengths['rh'].shape)
     max_wavelengths = np.concatenate([max_wavelengths['lh'], 

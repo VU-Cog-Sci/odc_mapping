@@ -6,14 +6,29 @@ import os.path as op
 from sklearn.model_selection import LeaveOneGroupOut
 from nistats.design_matrix import make_first_level_design_matrix
 import os
+import os.path as op
+import glob
+from nilearn import surface
 
 def main(sourcedata,
          derivatives,
          subject,
          session,
-         n_vertices):
+         n_vertices,
+         description):
+
+    # get n vertices in left hemisphere
+    # This is necessary to solve indexing-issue
+    tmp = pd.read_pickle(op.join(derivatives,
+                           'coordinate_patches',
+                         'sub-{subject}',
+                           'anat',
+                           'sub-{subject}_hemi-lh_coordinatepatch.pkl').format(**locals()))
+
+    n_left_vertices = tmp.shape[0]
 
     print(n_vertices)
+    print(description)
 
     task = 'checkerboard'
 
@@ -21,10 +36,10 @@ def main(sourcedata,
         task = 'fixation'
 
     events = pd.read_csv(op.join(sourcedata, 
-                                   'sub-{subject}', 
-                                   'ses-{session}',
-                                   'func',
-                                   'sub-{subject}_ses-{session}_task-{task}_acq-07_run-02_events.tsv').format(**locals()),
+                                 'sub-{subject}',
+                                 'ses-{session}',
+                                 'func',
+                                 'sub-{subject}_ses-{session}_task-{task}_acq-07_run-02_events.tsv').format(**locals()),
                          sep='\t')
 
     frametimes = np.linspace(0, 66*4, 66, endpoint=False)
@@ -33,7 +48,50 @@ def main(sourcedata,
                                 'depth_sampled_surfaces/sub-{subject}/sub-{subject}_ses-{session}_depth_sampled_data.pkl.gz'.format(**locals())))
     df = df.loc[:, 'cleaned']
 
+    df = df.loc[:, ['V1l', 'V1r']]
+
     df.index = df.index.droplevel(['subject' ,'session', 'acq'])
+
+
+    v1_both = df.loc[:, ['V1l', 'V1r']].copy()
+    v1_both.columns.set_levels(['V1'] * v1_both.shape[1], level=0, verify_integrity=False, inplace=True)
+
+    df = pd.concat((df, v1_both), axis=1)
+
+
+    for hemi in ['lh', 'rh']:
+        energies = pd.read_pickle(op.join(derivatives,
+                                          'zmap_spatfreq',
+                                          'sub-{subject}',
+                                          'ses-{session}',
+                                          'func',
+                                          'sub-{subject}_ses-{session}_hemi-{hemi}_energies.pkl').format(**locals()))
+        max_frequency = energies.groupby(['depth', 'frequency']).sum().groupby('depth', as_index=True).apply(lambda d: d.reset_index('depth', drop=True).idxmax())
+        max_wl = 1. / max_frequency
+
+        tmp = df.loc[:, 'V1{}'.format(hemi[:1])].T
+
+        # Solve indexing issue (start at first vertex lh versus rh)
+        if hemi == 'lh':
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns].T
+        elif hemi == 'rh':
+            tmp = tmp.loc[max_wl.loc[:, max_wl.mean() < 5].columns + n_left_vertices].T
+
+
+        tmp = pd.concat([tmp],
+                        axis=1,
+                        keys=['V1{}_shortwl'.format(hemi[:1])],
+                        names=['roi'])
+
+        df = pd.concat((df, tmp), axis=1)
+
+
+    v1_both = df.loc[:, ['V1l_shortwl', 'V1r_shortwl']].copy()
+    v1_both.columns.set_levels(['V1_shortwl'] * v1_both.shape[1], level=0, verify_integrity=False, inplace=True)
+
+
+    df = pd.concat((df, v1_both), axis=1)
+    print(df.head())
 
     events_shifted = events.copy()
     events_shifted['onset'] += 4
@@ -48,7 +106,7 @@ def main(sourcedata,
     runs = df.index.get_level_values("run").unique().sort_values().tolist()
 
     results = []
-    for (roi, depth), _ in df.loc[:, ['V1l', 'V1r']].groupby(level=['roi', 'depth'], axis=1):
+    for (roi, depth), _ in df.groupby(level=['roi', 'depth'], axis=1):
         print(roi, depth)
         for n_vertices_ in n_vertices:
             print(n_vertices_)
@@ -117,7 +175,7 @@ def main(sourcedata,
     if not op.exists(out_dir):
         os.makedirs(out_dir)
 
-    results.to_pickle(op.join(out_dir, 'sub-{subject}_desc-encodingaccuracy.pkl.gz').format(**locals()))
+    results.to_pickle(op.join(out_dir, 'sub-{subject}_desc-{description}_encodingaccuracy.pkl.gz').format(**locals()))
 
 
 if __name__ == '__main__':
@@ -142,6 +200,9 @@ if __name__ == '__main__':
                         nargs='+',
                         type=int,
                         default=[40])
+    parser.add_argument('--description',
+                        type=str,
+                        default='none')
 
     args = parser.parse_args()
 
@@ -149,4 +210,5 @@ if __name__ == '__main__':
          args.derivatives, 
          subject=args.subject,
          session=args.session,
-         n_vertices=args.n_vertices)
+         n_vertices=args.n_vertices,
+         description=args.description)
