@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from nilearn import image
+from scipy import ndimage
 
 def main(sourcedata,
          derivatives,
@@ -36,9 +37,15 @@ def main(sourcedata,
     transform = cortex.xfm.Transform(np.identity(4), t1w)
     #transform.save(pc_subject, 'identity.t1w', 'magnet')
 
-    mask1 = image.math_img('np.abs(zmap)', zmap=zmap1)
-    mask2 = image.math_img('np.abs(zmap)', zmap=zmap2)
-    mask3 = image.math_img('np.abs(zmap)', zmap=zmap3)
+    mask1 = image.math_img('np.abs(zmap)', zmap=zmap1).get_data().T
+    mask2 = image.math_img('np.abs(zmap)', zmap=zmap2).get_data().T
+    mask3 = image.math_img('np.abs(zmap) > 2', zmap=zmap3).get_data().T
+
+    print(mask3.sum())
+
+    mask3 = ndimage.binary_closing(mask3, iterations=2)
+    print(mask3.sum())
+
     
     images = {}
     zmap1 = zmap1.get_data().T
@@ -63,19 +70,19 @@ def main(sourcedata,
                                      #cmap='BuBkRd_alpha_2D')
 
     images['zmap_ses-odc2'] = cortex.Volume2D(zmap1,
-                                              mask1.get_data().T,
+                                              mask3,
                                               pc_subject,
                                               'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      cmap='BuBkRd_alpha_2D')
 
     images['zmap_ses-odc3'] = cortex.Volume2D(zmap2,
-                                              mask2.get_data().T,
+                                              mask3,
                                               pc_subject,
                                               'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      cmap='BuBkRd_alpha_2D')
 
     images['zmap_ses-cas'] = cortex.Volume2D(zmap3,
-                                             mask3.get_data().T,
+                                             mask3,
                                              pc_subject,
                                              'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      cmap='BuBkRd_alpha_2D')
