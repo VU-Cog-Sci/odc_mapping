@@ -16,7 +16,7 @@ def main(sourcedata,
          derivatives,
          subject,
          session,
-         cache=False,
+         cache=True,
          dataset='odc'):
 
 
@@ -46,6 +46,9 @@ def main(sourcedata,
     abs_zmap_r = op.join(derivatives, 'sampled_giis', f'sub-{subject}', 
                              f'ses-{session}', 'func', 
                              f'sub-{subject}_ses-{session}_left_over_right_desc-abszmap-depth-all_hemi-rh_smoothed.gii')
+
+    images = {}
+
     if op.exists(abs_zmap_l):
         abs_zmap = np.hstack((surface.load_surf_data(abs_zmap_l), surface.load_surf_data(abs_zmap_r)))
 
@@ -66,7 +69,6 @@ def main(sourcedata,
     mask = image.math_img('np.abs(zmap)', zmap=zmap)
 
     
-    images = {}
     zmap = zmap.get_data().T
     zmap[zmap == 0] = np.nan
 
