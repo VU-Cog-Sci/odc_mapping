@@ -5,6 +5,7 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.algorithms.confounds import TSNR
 from niworkflows.interfaces.bids import DerivativesDataSink
+from nipype.interfaces import fsl
 
 derivatives = '/derivatives'
 workflow_dirs = '/tmp/workflow_folders'
@@ -34,19 +35,32 @@ preproc = layout.get(subject=subject,
                      return_type='file',
                      suffix='preproc')
 
+reference = layout.get(subject=subject,
+                     session=session,
+                     return_type='file',
+                     suffix='reference')
+
+
 wf = pe.Workflow(base_dir=workflow_dirs,
                  name='tsnr_{}_{}'.format(subject, session))
 
-inputnode = pe.Node(niu.IdentityInterface(fields=['preproc']),
+inputnode = pe.Node(niu.IdentityInterface(fields=['preproc', 'reference']),
                     name='inputnode')
 
 inputnode.inputs.preproc = preproc
+inputnode.inputs.reference = reference
+
+adder = pe.MapNode(fsl.ImageMaths(op_string='-add'),
+                iterfield=['in_file', 'in_file2'],
+                name='adder')
+wf.connect(inputnode, 'preproc', adder, 'in_file')
+wf.connect(inputnode, 'reference', adder, 'in_file2')
 
 tsnr = pe.MapNode(TSNR(),
                   iterfield=['in_file'],
                   name='tsnr')
 
-wf.connect(inputnode, 'preproc', tsnr, 'in_file')
+wf.connect(adder, 'out_file', tsnr, 'in_file')
 
 def invert(in_file):
     from nilearn import image
