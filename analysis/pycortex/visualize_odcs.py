@@ -172,6 +172,17 @@ def main(sourcedata,
                                         xfmname='identity',
                                         vmin=0,
                                         vmax=2)
+
+    veins_surf_l = op.join(derivatives, 'tsnr', f'sub-{subject}',
+            f'ses-{session}', 'func',
+            f'sub-{subject}_ses-{session}_desc-depth.all_hemi-lh_invtsnr.gii')
+    veins_surf_r = op.join(derivatives, 'tsnr', f'sub-{subject}',
+            f'ses-{session}', 'func',
+            f'sub-{subject}_ses-{session}_desc-depth.all_hemi-rh_invtsnr.gii')
+    veins_d = np.hstack((surface.load_surf_data(veins_surf_l), surface.load_surf_data(veins_surf_r)))
+    veins_d[np.isinf(veins_d)] = np.nan
+    images['veins_surf'] = cortex.Vertex(veins_d, pc_subject)
+
     ds = cortex.Dataset(**images)
                                      
     cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject),
