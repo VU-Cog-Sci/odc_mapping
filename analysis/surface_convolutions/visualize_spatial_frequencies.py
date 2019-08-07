@@ -92,21 +92,22 @@ def main(derivatives,
 
     layout = BIDSLayout(op.join(derivatives, 'tsnr'),
                         validate=False)
-    #veins = layout.get(subject=subject,
-                       #session=session,
-                       #suffix='invtsnr',
-                       #return_type='file')
-    #veins = image.mean_img(veins)
+    veins = layout.get(subject=subject,
+                       session=session,
+                       suffix='invtsnr',
+                       extension='nii.gz',
+                       return_type='file')
+    veins = image.mean_img(veins)
 
-    #t1w = cortex.db.get_anat(pc_subject, 'raw')
-    #veins = image.resample_to_img(veins,
-                                  #t1w)
+    t1w = cortex.db.get_anat(pc_subject, 'raw')
+    veins = image.resample_to_img(veins,
+                                  t1w)
 
-    #images['veins'] = cortex.Volume(veins.get_data().T,
-                                    #subject=pc_subject,
-                                    #xfmname='identity',
-                                    #vmin=0,
-                                    #vmax=2)
+    images['veins'] = cortex.Volume(veins.get_data().T,
+                                    subject=pc_subject,
+                                    xfmname='identity',
+                                    vmin=0,
+                                    vmax=2)
 
     zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_left_over_right_zmap.nii.gz'.format(**locals())
 
