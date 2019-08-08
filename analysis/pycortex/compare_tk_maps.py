@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from nilearn import image
+from scipy import ndimage
 
 def main(sourcedata,
          derivatives,
@@ -23,16 +24,28 @@ def main(sourcedata,
     session = 'odc3'
     zmap2 = template.format(**locals())
 
+    session = 'cas'
+    zmap3 = template.format(**locals())
+
     t1w = get_bids_file(derivatives, 'averaged_mp2rages', 'anat',
                          subject, 'T1w', 'anat', 'average')
 
     zmap1 = image.resample_to_img(zmap1, t1w, interpolation='nearest')
     zmap2 = image.resample_to_img(zmap2, t1w, interpolation='nearest')
+    zmap3 = image.resample_to_img(zmap3, t1w, interpolation='nearest')
 
     transform = cortex.xfm.Transform(np.identity(4), t1w)
     #transform.save(pc_subject, 'identity.t1w', 'magnet')
 
-    mask = image.math_img('np.abs(zmap)', zmap=zmap1)
+    mask1 = image.math_img('np.abs(zmap)', zmap=zmap1).get_data().T
+    mask2 = image.math_img('np.abs(zmap)', zmap=zmap2).get_data().T
+    mask3 = image.math_img('np.abs(zmap) > 2', zmap=zmap3).get_data().T
+
+    print(mask3.sum())
+
+    mask3 = ndimage.binary_closing(mask3, iterations=2)
+    print(mask3.sum())
+
     
     images = {}
     zmap1 = zmap1.get_data().T
@@ -41,7 +54,9 @@ def main(sourcedata,
     zmap2 = zmap2.get_data().T
     zmap2[zmap2 == 0] = np.nan
 
-    mask = mask.get_data().T
+    zmap3 = zmap3.get_data().T
+    zmap3[zmap3 == 0] = np.nan
+
     #images['zmap_ses-odc2'] = cortex.Volume2D(zmap1,
                                      #mask,
                                      #pc_subject,
@@ -54,40 +69,24 @@ def main(sourcedata,
                                      #'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
                                      #cmap='BuBkRd_alpha_2D')
 
-    images['zmap_ses-odc2'] = cortex.Volume(zmap1,
-                                     pc_subject,
-                                     'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
-                                     cmap='BuBkRd')
+    images['zmap_ses-odc2'] = cortex.Volume2D(zmap1,
+                                              mask3,
+                                              pc_subject,
+                                              'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
+                                     cmap='BuBkRd_alpha_2D')
 
-    images['zmap_ses-odc3'] = cortex.Volume(zmap2,
-                                     pc_subject,
-                                     'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
-                                     cmap='BuBkRd')
+    images['zmap_ses-odc3'] = cortex.Volume2D(zmap2,
+                                              mask3,
+                                              pc_subject,
+                                              'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
+                                     cmap='BuBkRd_alpha_2D')
 
+    images['zmap_ses-cas'] = cortex.Volume2D(zmap3,
+                                             mask3,
+                                             pc_subject,
+                                             'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
+                                     cmap='BuBkRd_alpha_2D')
     
-    #prf_pars = np.load(op.join(derivatives, 'voxel_prf/modelfree/sub-{subject}_desc-None_prf_pars.npz').format(**locals()))
-
-    #r2 = prf_pars['r2']
-    #mask = r2 < 0.05
-
-    #angle = prf_pars['angle']
-    #angle[mask] = np.nan
-
-    #ecc = prf_pars['ecc']
-    #ecc[mask] = np.nan
-
-    #size = prf_pars['size']
-    #size[mask] = np.nan
-
-    #images['r2'] = cortex.Vertex(prf_pars['r2'], pc_subject, cmap='inferno')
-    #images['ecc'] = cortex.Vertex(ecc, pc_subject, vmin=0,vmax=15, cmap='inferno')
-    #images['angle'] = cortex.Vertex(angle, pc_subject, vmin=-3.14, vmax=3.14, cmap='hsv')
-    #images['size'] = cortex.Vertex(size, pc_subject, vmin=0, vmax=10)
-    ##images['angle'] = cortex.Vertex2D(prf_pars['angle'], prf_pars['r2'], pc_subject)
-    ##images['angle'] = cortex.Vertex(prf_pars['angle'], pc_subject)
-    #images['size'] = cortex.Vertex2D(prf_pars['size'], prf_pars['r2'], pc_subject)
-    #images['ecc'] = cortex.Vertex2D(prf_pars['ecc'], prf_pars['r2'], pc_subject)
-
     ds = cortex.Dataset(**images)
                                      
     cortex.webgl.make_static(outpath=op.join(derivatives, 'pycortex', subject),
