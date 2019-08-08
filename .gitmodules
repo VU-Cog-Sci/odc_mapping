@@ -17,3 +17,6 @@
 [submodule "pycortex"]
 	path = pycortex
 	url = git@github.com:Gilles86/pycortex.git
+[submodule "braincoder"]
+	path = braincoder
+	url = /Users/gdehol/git/braincoder
