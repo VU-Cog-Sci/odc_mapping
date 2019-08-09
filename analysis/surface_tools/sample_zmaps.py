@@ -42,7 +42,7 @@ def main(derivatives,
                                             override_reg_subj=True,
                                             reg_header=True,
                                             subject_id='sub-{}'.format(subject),
-                                            interp_method='trilinear',
+                                            interp_method='nearest',
                                             projection_stem='',
                                          out_type='gii'),
                          name='sampler')
