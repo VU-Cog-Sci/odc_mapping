@@ -4,6 +4,7 @@ import os.path as op
 import pandas as pd
 import numpy as np
 from nilearn import surface
+from utils import get_bids_file
 from bids import BIDSLayout
 from nilearn import image
 
@@ -34,6 +35,7 @@ def main(derivatives,
                             'anat', 'sub-{subject}_hemi-{hemi}_coordinatepatch.pkl').format(**locals()))
 
         energies = pd.read_pickle(energies)
+        energies = energies.loc[:, ~energies.isnull().any(0)]
 
         max_frequency = energies.groupby(['depth', 'frequency']).sum().groupby('depth', as_index=True).apply(lambda d: d.reset_index('depth', drop=True).idxmax())
 
@@ -64,10 +66,10 @@ def main(derivatives,
         max_orientations[hemi] = pd.concat((ss, max_orientations[hemi])).values
 
     print(max_wavelengths['lh'].shape, max_wavelengths['rh'].shape)
-    max_wavelengths = np.concatenate([max_wavelengths['lh'], 
+    max_wavelengths = np.concatenate([max_wavelengths['lh'],
                                       max_wavelengths['rh']],
                                      axis=-1)
-    max_orientations = np.concatenate([max_orientations['lh'], 
+    max_orientations = np.concatenate([max_orientations['lh'],
                                        max_orientations['rh']],
                                       axis=-1)
 
@@ -93,6 +95,7 @@ def main(derivatives,
     veins = layout.get(subject=subject,
                        session=session,
                        suffix='invtsnr',
+                       extension='nii.gz',
                        return_type='file')
     veins = image.mean_img(veins)
 
@@ -106,6 +109,30 @@ def main(derivatives,
                                     vmin=0,
                                     vmax=2)
 
+    zmap = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_left_over_right_zmap.nii.gz'.format(**locals())
+
+    t1w = get_bids_file(derivatives, 'averaged_mp2rages', 'anat',
+                         subject, 'T1w', 'anat', 'average')
+
+    zmap = image.resample_to_img(zmap, t1w)
+
+    transform = cortex.xfm.Transform(np.identity(4), t1w)
+
+    if not np.in1d(subject, ['bm', 'tk']):
+        transform.save(pc_subject, 'identity.t1w', 'magnet')
+
+
+    mask = image.math_img('np.abs(zmap)', zmap=zmap)
+
+    
+    zmap = zmap.get_data().T
+    zmap[zmap == 0] = np.nan
+    mask = mask.get_data().T
+    images['zmap'] = cortex.Volume2D(zmap,
+                                     mask,
+                                     pc_subject,
+                                     'identity.t1w', vmin=-3, vmax=3, vmin2=0, vmax2=3,
+                                     cmap='BuBkRd_alpha_2D')
     ds = cortex.Dataset(**images)
 
     cortex.webshow(ds)
