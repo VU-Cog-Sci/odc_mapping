@@ -35,32 +35,41 @@ preproc = layout.get(subject=subject,
                      return_type='file',
                      suffix='preproc')
 
-reference = layout.get(subject=subject,
+mask = layout.get(subject=subject,
                      session=session,
                      return_type='file',
-                     suffix='reference')
+                     suffix='mask')
+
+assert(len(mask) == 1)
+mask = mask[0]
 
 
 wf = pe.Workflow(base_dir=workflow_dirs,
                  name='tsnr_{}_{}'.format(subject, session))
 
-inputnode = pe.Node(niu.IdentityInterface(fields=['preproc', 'reference']),
+inputnode = pe.Node(niu.IdentityInterface(fields=['preproc', 'mask']),
                     name='inputnode')
 
 inputnode.inputs.preproc = preproc
-inputnode.inputs.reference = reference
+inputnode.inputs.mask = mask
 
-adder = pe.MapNode(fsl.ImageMaths(op_string='-add'),
-                iterfield=['in_file', 'in_file2'],
+adder = pe.MapNode(fsl.ImageMaths(op_string='-add 100'),
+                iterfield=['in_file'],
                 name='adder')
 wf.connect(inputnode, 'preproc', adder, 'in_file')
-wf.connect(inputnode, 'reference', adder, 'in_file2')
 
 tsnr = pe.MapNode(TSNR(),
                   iterfield=['in_file'],
                   name='tsnr')
 
 wf.connect(adder, 'out_file', tsnr, 'in_file')
+
+masker = pe.MapNode(fsl.ApplyMask(),
+                 iterfield=['in_file'],
+                 name='masker')
+
+wf.connect(tsnr, 'tsnr_file', masker, 'in_file')
+wf.connect(inputnode, 'mask', masker, 'mask_file')
 
 def invert(in_file):
     from nilearn import image
@@ -80,7 +89,7 @@ invert_tsnr = pe.MapNode(niu.Function(function=invert,
                                    output_names=['out_file']),
                          iterfield=['in_file'],
                          name='invert_tsnr')
-wf.connect(tsnr, 'tsnr_file', invert_tsnr, 'in_file')
+wf.connect(masker, 'out_file', invert_tsnr, 'in_file')
 
 ds_tsnr = pe.MapNode(DerivativesDataSink(base_directory=derivatives,
                                  suffix='tsnr',
@@ -89,7 +98,7 @@ ds_tsnr = pe.MapNode(DerivativesDataSink(base_directory=derivatives,
              name='datasink_tsnr')
 
 wf.connect(inputnode, 'preproc', ds_tsnr, 'source_file')
-wf.connect(tsnr, 'tsnr_file', ds_tsnr, 'in_file')
+wf.connect(masker, 'out_file', ds_tsnr, 'in_file')
 
 ds_std = pe.MapNode(DerivativesDataSink(base_directory=derivatives,
                                  suffix='stddev',
@@ -98,7 +107,7 @@ ds_std = pe.MapNode(DerivativesDataSink(base_directory=derivatives,
              name='datasink_std')
 
 wf.connect(inputnode, 'preproc', ds_std, 'source_file')
-wf.connect(tsnr, 'tsnr_file', ds_std, 'in_file')
+wf.connect(tsnr, 'stddev_file', ds_std, 'in_file')
 
 ds_invtsnr = pe.MapNode(DerivativesDataSink(base_directory=derivatives,
                                  suffix='invtsnr',
