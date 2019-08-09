@@ -9,6 +9,7 @@ from scipy import interpolate
 from itertools import product
 from tqdm import tqdm
 from skimage.filters import gabor_kernel
+from skimage.io import imsave
 import scipy.ndimage as ndi
 import sharedmem
 
@@ -61,6 +62,16 @@ def main(derivatives,
                                         fill_value=0,
                                         method='linear').reshape(x_grid.shape)
 
+            results_dir = op.join(derivatives, 'zmap_spatfreq',
+                                             'sub-{subject}',
+                                             'ses-{session}',
+                                             'func').format(**locals())
+
+            if not op.exists(results_dir):
+                os.makedirs(results_dir)
+
+            print('Writing zmap...')
+            imsave(op.join(results_dir, f'sub-{subject}_ses-{session}_hemi-{hemi}_depth-{depth}_desc-zmap2d_image.png'), data)
 
             pars = [(freq, ori) for freq, ori in product(frequencies_pix, orientations)]
 
@@ -98,12 +109,6 @@ def main(derivatives,
                                       columns=df.index)
         results_vertex.loc[:, df[df['z_value'] == 0].index] = np.nan
 
-        results_dir = op.join(derivatives, 'zmap_spatfreq',
-                                         'sub-{subject}',
-                                         'ses-{session}',
-                                         'func').format(**locals())
-        if not op.exists(results_dir):
-            os.makedirs(results_dir)
 
         results_vertex.to_pickle(op.join(results_dir,
                                          'sub-{subject}_ses-{session}_hemi-{hemi}_energies.pkl').format(**locals()))
