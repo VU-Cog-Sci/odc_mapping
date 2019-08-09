@@ -1,7 +1,6 @@
 import argparse
 import numpy as np
 import pandas as pd
-from braincoder.decoders import WeightedEncodingModel
 import os.path as op
 from sklearn.model_selection import LeaveOneGroupOut
 from nistats.design_matrix import make_first_level_design_matrix
@@ -9,14 +8,26 @@ import os
 import os.path as op
 import glob
 from nilearn import surface
-
+import tensorflow as tf
+import logging
+from braincoder.decoders import WeightedEncodingModel
+import timeit
 
 def main(sourcedata,
          derivatives,
          subject,
          session,
          n_vertices,
-         description):
+         masks,
+         description,
+         progressbar,
+         verbose=False):
+    
+    logging.basicConfig(level=logging.INFO,
+                       format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
+    logger = logging.getLogger('fit_encoding_model')
+    logger.setLevel(logging.DEBUG)
+    logger.info('Checking logger, 1-2-3.')
 
     # get n vertices in left hemisphere
     # This is necessary to solve indexing-issue
@@ -28,8 +39,9 @@ def main(sourcedata,
 
     n_left_vertices = tmp.shape[0]
 
-    print(n_vertices)
-    print(description)
+    logger.info('Using {} vertices masks {} with description {}.'.format(n_vertices,
+                                                                         masks,
+                                                                         description))
 
     task = 'checkerboard'
 
@@ -90,8 +102,8 @@ def main(sourcedata,
         ['V1_shortwl'] * v1_both.shape[1], level=0, verify_integrity=False, inplace=True)
 
     df = pd.concat((df, v1_both), axis=1)
-    print(df.head())
-    print(df.groupby(level='roi', axis=1).size())
+    sizes = df.groupby(level='roi', axis=1).size()
+    logger.info('Size of rois:\n{}'.format(sizes))
 
     events_shifted = events.copy()
     events_shifted['onset'] += 4
@@ -106,70 +118,77 @@ def main(sourcedata,
     runs = df.index.get_level_values("run").unique().sort_values().tolist()
 
     results = []
-    for (roi, depth), _ in df.groupby(level=['roi', 'depth'], axis=1):
-        print(roi, depth)
+    for (roi, depth), _ in df.loc[:, masks].groupby(level=['roi', 'depth'], axis=1):
+        logger.info('Working on roi {} at depth {}'.format(roi, depth))
         for n_vertices_ in n_vertices:
-            print(n_vertices_)
-            for i, run in enumerate(runs[::2]):
-                train = [run, run+1]
-                test = runs.copy()
-                test.remove(run)
-                test.remove(run+1)
+            for lambd in [0.1, 0.5, 0.9, 1.0]:
+                logger.info('Lambda = {}'.format(lambd))
+                for i, run in enumerate(runs[::2]):
+                    train = [run, run+1]
+                    test = runs.copy()
+                    test.remove(run)
+                    test.remove(run+1)
 
-                X_train = np.tile(X_unconvolved, (len(train), 1))
-                X_test = np.tile(X_unconvolved, (len(test), 1))
+                    X_train = np.tile(X_unconvolved, (len(train), 1))
+                    X_test = np.tile(X_unconvolved, (len(test), 1))
 
-                df_test = df.loc[(slice(None),
-                                  test),
-                                 (roi, slice(None), depth)]
+                    df_test = df.loc[(slice(None),
+                                      test),
+                                     (roi, slice(None), depth)]
 
-                df_train = df.loc[(slice(None),
-                                   train),
-                                  (roi, slice(None), depth)]
+                    df_train = df.loc[(slice(None),
+                                       train),
+                                      (roi, slice(None), depth)]
 
-                X_ = (X_train[:, 0] - X_train[:, 1])[:, np.newaxis]
-                X_ = (X_ - X_.mean(0))/X_.std()
+                    X_ = (X_train[:, 0] - X_train[:, 1])[:, np.newaxis]
+                    X_ = (X_ - X_.mean(0))/X_.std()
 
-                df_train = (df_train - df_train.mean()) / df_train.std()
-                df_train = df_train.groupby(['run']).apply(lambda d: (d - d.mean()) / d.std())
-                r = (X_ * df_train).sum(0) / len(X_)
+                    df_train = df_train.groupby(['run']).apply(lambda d: (d - d.mean()) / d.std())
+                    r = (X_ * df_train).sum(0) / len(X_)
 
-                ix = r.abs().sort_values()[-n_vertices_:].index
+                    ix = r.abs().sort_values()[-n_vertices_:].index
 
-                print('fitting')
-                model.fit(X_train, df_train.loc[:, ix].values)
-                print('done')
+                    logger.info('fitting')
+                    start = timeit.default_timer()
+                    model.fit(X_train, df_train.loc[:, ix].values, lambd=lambd,
+                              refit_weights=False, progressbar=progressbar)
+                    stop = timeit.default_timer()
+                    fitting_time = stop - start
+                    logger.info('done (in {:.2f} seconds)'.format(fitting_time))
 
-                df_test = (df_test - df_test.mean()) / df_test.std()
-                _, stimulus_p = model.get_stimulus_posterior(
-                    df_test.loc[:, ix].values, stimulus_range=np.array([0, 1]))
+                    df_test = df_test.groupby(['run']).apply(lambda d: (d - d.mean()) / d.std())
 
-                # Bayes factor for stimulus population 1  being on and population 2 being off
-                # versus population 1 off and population 2 on.
-                bf = (stimulus_p[:, 1, 0] + stimulus_p[:, 0, 1]) / \
-                    (stimulus_p[:, 1, 1] + stimulus_p[:, 0, 0])
+                    _, stimulus_p = model.get_stimulus_posterior(
+                        df_test.loc[:, ix].values, stimulus_range=np.array([0, 1]))
 
-                map, sd = model.get_map_sd_stimulus_timeseries(
-                    df_test.loc[:, ix].values, stimulus_range=np.linspace(-10, 10, 100))
+                    # Bayes factor for stimulus population 1  being on and population 2 being off
+                    # versus population 1 off and population 2 on.
+                    bf = (stimulus_p[:, 1, 0] + stimulus_p[:, 0, 1]) / \
+                        (stimulus_p[:, 1, 1] + stimulus_p[:, 0, 0])
 
-                r = pd.concat((pd.DataFrame(bf, index=df_test.index, columns=['bayes factor']),
-                               pd.DataFrame(X_test, index=df_test.index, columns=[
-                                            'left eye', 'right eye']),
-                               pd.DataFrame(sd, index=df_test.index, columns=[
-                                            'SD(left eye)', 'SD(right eye)']),
-                               pd.DataFrame(map, index=df_test.index, columns=['activation left eye', 'activation right eye'])),
-                              axis=1)
-                X_ = X_test[:, 0] - X_test[:, 1]
-                accuracy = (((X_ == 1) & (bf > 1)).sum() + ((X_ == -1)
-                                                            & (bf < 1)).sum()) / np.in1d(X_, [-1, 1]).sum()
-                print(accuracy)
+                    map, sd = model.get_map_sd_stimulus_timeseries(
+                        df_test.loc[:, ix].values, stimulus_range=np.linspace(-10, 10, 100))
 
-                r['roi'] = roi
-                r['n_vertices'] = n_vertices_
-                r['depth'] = depth
-                r['fold'] = i+i
+                    r = pd.concat((pd.DataFrame(bf, index=df_test.index, columns=['bayes factor']),
+                                   pd.DataFrame(X_test, index=df_test.index, columns=[
+                                                'left eye', 'right eye']),
+                                   pd.DataFrame(sd, index=df_test.index, columns=[
+                                                'SD(left eye)', 'SD(right eye)']),
+                                   pd.DataFrame(map, index=df_test.index, columns=['activation left eye', 'activation right eye']),
+                                   pd.DataFrame(fitting_time, index=df_test.index, columns=['fitting time'])),
+                                  axis=1)
+                    X_ = X_test[:, 0] - X_test[:, 1]
+                    accuracy = (((X_ == 1) & (bf > 1)).sum() + ((X_ == -1)
+                                                                & (bf < 1)).sum()) / np.in1d(X_, [-1, 1]).sum()
+                    logger.info('Accuracy: {}'.format(accuracy))
 
-                results.append(r)
+                    r['roi'] = roi
+                    r['n_vertices'] = n_vertices_
+                    r['depth'] = depth
+                    r['fold'] = i
+                    r['lambda'] = lambd
+
+                    results.append(r)
 
     results = pd.concat(results, axis=0)
     results['subject'], results['session'] = subject, session
@@ -207,9 +226,16 @@ if __name__ == '__main__':
                         nargs='+',
                         type=int,
                         default=[40])
+    parser.add_argument('--masks',
+                        nargs='+',
+                        type=str,
+                        default=['V1'])
     parser.add_argument('--description',
                         type=str,
                         default='none')
+    parser.add_argument('--no-progressbar',
+                        dest='progressbar',
+                        action='store_false')
 
     args = parser.parse_args()
 
@@ -217,5 +243,7 @@ if __name__ == '__main__':
          args.derivatives,
          subject=args.subject,
          session=args.session,
+         masks=args.masks,
          n_vertices=args.n_vertices,
-         description=args.description)
+         description=args.description,
+         progressbar=args.progressbar)
