@@ -53,6 +53,8 @@ def main(sourcedata,
 
     df.sort_values('run', inplace=True)
 
+    print(df)
+
     models = []
     for ix, row in df.iterrows():
 
@@ -148,17 +150,16 @@ def main(sourcedata,
 
     os.makedirs(os.path.join(results_dir, 'cv'), exist_ok=True)
 
-    kf = KFold(n_splits=len(models) // 2)
+    kf = KFold(n_splits=2)
 
     models_ = np.array(models)
 
     for i, (train, test) in enumerate(kf.split(models_)):
 
         print('CV %d' % (i+1))
-        print('Train: {}'.format(train))
-        print('Test: {}'.format(test))
-        second_level_model = SecondLevelModel(mask_img=mask)
-        second_level_model.fit(list(models_[train]))
+        print('Using runs: {}'.format(test))
+        second_level_model = SecondLevelModel(mask=mask)
+        second_level_model.fit(list(models_[test]))
 
         left_right_group =second_level_model.compute_contrast(
             first_level_contrast='eye_L - eye_R',
@@ -170,7 +171,7 @@ def main(sourcedata,
     confounds['task_events'] = confounds.task_events.map({'checkerboard':1, 'fixation':0})
     confounds['subject_label'] = df['run'].astype(int)
 
-    second_level_model = SecondLevelModel(mask_img=mask)
+    second_level_model = SecondLevelModel(mask=mask)
     second_level_model.fit(models, confounds=confounds)
 
     attention_contrast =second_level_model.compute_contrast(first_level_contrast='eye_L - eye_R',
@@ -191,18 +192,14 @@ if __name__ == '__main__':
                         type=str,
                         default='*',
                         help="subject to process")
-    parser.add_argument("session", 
-                        type=str,
-                        default='*',
-                        help="subject to process")
     parser.add_argument("--sourcedata", 
                         nargs='?',
-                        default='/data/odc/sourcedata',
+                        default='/sourcedata/ds-odc',
                         type=str,
                         help="Sourcedata directory")
     parser.add_argument("--derivatives", 
                         nargs='?',
-                        default='/data/odc/derivatives',
+                        default='/derivatives',
                         type=str,
                         help="Sourcedata directory")
     args = parser.parse_args()
