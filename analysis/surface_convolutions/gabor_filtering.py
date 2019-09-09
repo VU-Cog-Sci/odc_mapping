@@ -9,7 +9,9 @@ from scipy import interpolate
 from itertools import product
 from tqdm import tqdm
 from skimage.filters import gabor_kernel
+from skimage.io import imsave
 import scipy.ndimage as ndi
+import sharedmem
 
 
 def main(derivatives,
@@ -19,8 +21,8 @@ def main(derivatives,
     grid_resolution = .35
     max_frequency = 1.
     min_frequency = 1/10.
-    n_frequencies = 20
-    n_orientations = 8
+    n_frequencies = 50
+    n_orientations = 16
     scale_factor = (min_frequency/max_frequency)**(-1/(n_frequencies-1))
     frequencies_mm = scale_factor**-np.arange(0, n_frequencies) * max_frequency
     orientations = np.linspace(0, np.pi, n_orientations, endpoint=False)
@@ -60,18 +62,40 @@ def main(derivatives,
                                         fill_value=0,
                                         method='linear').reshape(x_grid.shape)
 
+            results_dir = op.join(derivatives, 'zmap_spatfreq',
+                                             'sub-{subject}',
+                                             'ses-{session}',
+                                             'func').format(**locals())
 
-            for freq, ori in product(frequencies_pix, orientations):
-                kernel = gabor_kernel(freq, ori, n_stds=3)
-                filtered_real = ndi.convolve(data, np.real(kernel), mode='wrap')
-                filtered_imag = ndi.convolve(data, np.imag(kernel), mode='wrap')
-                power = np.sqrt(filtered_real**2 + filtered_imag**2)
-                power[data == 0] = 0
+            if not op.exists(results_dir):
+                os.makedirs(results_dir)
 
-                power = pd.DataFrame([power.ravel()],
-                                     index=pd.MultiIndex.from_tuples([(depth, freq/grid_resolution, ori)], names=['depth', 'frequency', 'orientation']))
-                results.append(power)
-                pb.update()
+            print('Writing zmap...')
+            imsave(op.join(results_dir, f'sub-{subject}_ses-{session}_hemi-{hemi}_depth-{depth}_desc-zmap2d_image.png'), data)
+
+            pars = [(freq, ori) for freq, ori in product(frequencies_pix, orientations)]
+
+            n_jobs = 16
+
+            with sharedmem.MapReduce(np=n_jobs) as pool:
+                def reduce(r):
+                    pb.update()
+                    return r
+
+                def get_power(pars):
+                    freq, ori = pars
+                    kernel = gabor_kernel(freq, ori, n_stds=3)
+                    filtered_real = ndi.convolve(data, np.real(kernel), mode='wrap')
+                    filtered_imag = ndi.convolve(data, np.imag(kernel), mode='wrap')
+                    power = np.sqrt(filtered_real**2 + filtered_imag**2)
+                    power[data == 0] = np.nan
+
+                    power = pd.DataFrame([power.ravel()],
+                                         index=pd.MultiIndex.from_tuples([(depth, freq/grid_resolution, ori)], names=['depth', 'frequency', 'orientation']))
+
+                    return power
+
+                results += pool.map(get_power, pars, reduce)
 
         results = pd.concat(results, axis=0)
 
@@ -85,12 +109,6 @@ def main(derivatives,
                                       columns=df.index)
         results_vertex.loc[:, df[df['z_value'] == 0].index] = np.nan
 
-        results_dir = op.join(derivatives, 'zmap_spatfreq',
-                                         'sub-{subject}',
-                                         'ses-{session}',
-                                         'func').format(**locals())
-        if not op.exists(results_dir):
-            os.makedirs(results_dir)
 
         results_vertex.to_pickle(op.join(results_dir,
                                          'sub-{subject}_ses-{session}_hemi-{hemi}_energies.pkl').format(**locals()))

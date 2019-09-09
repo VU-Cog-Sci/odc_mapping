@@ -11,10 +11,11 @@ from bids import BIDSLayout
 from sklearn import decomposition
 
 
-def main(derivatives,
+def main(sourcedata,
+         derivatives,
          subject,
          session):
-    derivatives_layout = BIDSLayout(os.path.join(derivatives), validate=False)
+    derivatives_layout = BIDSLayout(op.join(derivatives), validate=False)
     derivatives_df = derivatives_layout.as_data_frame()
 
     confounds =  derivatives_df[(derivatives_df['suffix'] == 'confounds') &
@@ -26,13 +27,16 @@ def main(derivatives,
                               (derivatives_df['session'] == session)].set_index(['subject', 'session', 'task', 'run'])
 
     fns = glob.glob(op.join(derivatives, 'sampled_giis/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_*.gii'.format(**locals())))
-    events = pd.read_table('/data/odc/sourcedata/sub-tk/ses-odc2/func/sub-tk_ses-odc2_task-checkerboard_acq-07_run-02_events.tsv')
+    # Events are the same for all subjects
+    events = pd.read_table(op.join(sourcedata,
+                                   'sub-tk/ses-odc2/func/sub-tk_ses-odc2_task-checkerboard_acq-07_run-02_events.tsv'))
 
-    df = pd.read_pickle('/data/odc/derivatives/depth_sampled_surfaces/sub-{subject}/sub-{subject}_ses-{session}_depth_sampled_data.pkl.gz'.format(**locals()))
+    df = pd.read_pickle(op.join(derivatives,
+                                'depth_sampled_surfaces/sub-{subject}/sub-{subject}_ses-{session}_depth_sampled_data.pkl.gz'.format(**locals())))
     print(df.head())
     df = df.loc[:, 'psc']
 
-    df = df.droplevel('acq')
+    df.index = df.index.droplevel('acq')
 
     frametimes = np.linspace(0, 66*4, 66, endpoint=False)
     X = make_first_level_design_matrix(frametimes, events, drift_order=None, drift_model=None)
@@ -91,7 +95,8 @@ if __name__ == '__main__':
                         help="subject to process")
     args = parser.parse_args()
 
-    main('/data/odc/derivatives', 
+    main('/sourcedata/ds-odc',
+         '/derivatives', 
          subject=args.subject,
          session=args.session)
 

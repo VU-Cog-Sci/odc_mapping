@@ -14,14 +14,20 @@ def main(derivatives,
          session,
          workflow_folder,
          n_procs=8):
-    fn = op.join(derivatives, 'modelfitting', 'glm7',
-                 'sub-{subject}', 'ses-{session}', 'func',
-                 'sub-{subject}_ses-{session}_left_over_right_zmap.nii.gz').format(subject=subject,
-                                                                                   session=session)
+
+    fn = get_derivative(derivatives,
+                        'tsnr',
+                        'func',
+                        subject=subject,
+                        session=session,
+                        run='*',
+                        acquisition='*',
+                        task='*',
+                        suffix='invtsnr')
 
     os.environ['SUBJECTS_DIR'] = op.join(derivatives, 'freesurfer')
 
-    wf = pe.Workflow(name='sample_fs_{}_{}'.format(subject, session),
+    wf = pe.Workflow(name='sample_fs_invtsnt_{}_{}'.format(subject, session),
                      base_dir=workflow_folder)
 
     input_node = pe.Node(niu.IdentityInterface(fields=['source_file']),
@@ -38,13 +44,14 @@ def main(derivatives,
     def get_surf_name(depth, n_surfs=8):
         return 'equi{}.pial'.format(str(float(depth)/(n_surfs-1)))
 
-    sampler = pe.Node(fs.SampleToSurface(subjects_dir=os.path.join(derivatives,'freesurfer'),
+    sampler = pe.MapNode(fs.SampleToSurface(subjects_dir=os.path.join(derivatives,'freesurfer'),
                                             override_reg_subj=True,
                                             reg_header=True,
                                             subject_id='sub-{}'.format(subject),
-                                            interp_method='nearest',
+                                            interp_method='trilinear',
                                             projection_stem='',
                                          out_type='gii'),
+                         iterfield=['source_file'],
                          name='sampler')
 
     wf.connect(input_node, 'source_file', sampler, 'source_file')
@@ -52,13 +59,13 @@ def main(derivatives,
     wf.connect(config_node, 'hemisphere', sampler, 'hemi')
 
     def get_desc(depth, n_surfs=8):
-        return 'zmap-depth-{:.03f}'.format(float(depth)/(n_surfs-1))
+        return 'depth.{:.03f}'.format(float(depth)/(n_surfs-1))
 
     def get_extra_values(hemi):
         return ['hemi-{}'.format(hemi)]
 
     ds = pe.MapNode(DerivativesDataSink(base_directory=derivatives,
-                                        out_path_base='sampled_giis',
+                                        out_path_base='tsnr',
                                         ),
                     iterfield=['in_file', 'source_file'],
                  name='datasink')
@@ -88,3 +95,7 @@ if __name__ == '__main__':
          subject=args.subject,
          session=args.session,
          workflow_folder='/workflow_folders',)
+         
+
+
+

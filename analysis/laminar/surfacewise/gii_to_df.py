@@ -92,8 +92,9 @@ def main(derivatives,
 
 
     # Filter out vertices where one or more runs/depths has std of 0
-    ix = (~(((results.groupby('run').std() == 0).any(0)))).groupby('vertex').all()
-    results = results.loc[:, results.columns.get_level_values('vertex').isin(ix[ix].index)]
+    if subject not in ['bm']:
+        ix = (~(((results.groupby('run').std() == 0).any(0)))).groupby('vertex').all()
+        results = results.loc[:, results.columns.get_level_values('vertex').isin(ix[ix].index)]
 
     target_dir = op.join(derivatives,
                          'depth_sampled_surfaces',
@@ -116,7 +117,7 @@ if __name__ == '__main__':
                         help="subject to process")
     args = parser.parse_args()
 
-    main('/data/odc/derivatives', 
+    main('/derivatives', 
          subject=args.subject,
          session=args.session)
 

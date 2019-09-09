@@ -134,9 +134,14 @@ if __name__ == '__main__':
                         type=str,
                         default='*',
                         help="subject to process")
+    parser.add_argument("--derivatives", 
+                        nargs='?',
+                        default='/data/odc/derivatives',
+                        type=str,
+                        help="Sourcedata directory")
     args = parser.parse_args()
 
-    main('/data/odc/derivatives', 
+    main(args.derivatives, 
          subject=args.subject,
          session=args.session)
 
