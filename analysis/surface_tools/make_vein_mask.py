@@ -6,7 +6,7 @@ import numpy as np
 import nibabel as nb
 
 derivatives = '/derivatives'
-subject = 'tr'
+subject = '06'
 session = 'odc'
 
 def main(derivatives,

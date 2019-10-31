@@ -3,14 +3,14 @@ import os
 import os.path as op
 
 
-subject_session = [('bm', 'odc'), 
-                   ('eo', 'odc'),
-                   ('de', 'odc1'),
-                   ('ms', 'odc2'),
-                   ('ns', 'odc'),
-                   ('tk', 'odc2'),
-                   ('tk', 'odc3'),
-                   ('tr', 'odc')]
+subject_session = [('01', 'odc'), 
+                   ('03', 'odc'),
+                   ('02', 'odc1'),
+                   ('04', 'odc2'),
+                   ('05', 'odc'),
+                   ('07', 'odc2'),
+                   ('07', 'odc3'),
+                   ('06', 'odc')]
 
 n_vertices = [12, 25, 50, 100, 200, 400, 800, 1600]
 masks = ['V1', 'V1l', 'V1r', 'V1_shortwl', 'V1l_shortwl', 'V1r_shortwl']

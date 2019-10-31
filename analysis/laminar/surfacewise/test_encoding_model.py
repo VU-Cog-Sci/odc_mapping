@@ -45,7 +45,7 @@ def main(sourcedata,
 
     task = 'checkerboard'
 
-    if subject == 'bm':
+    if subject == '01':
         task = 'fixation'
 
     events = pd.read_csv(op.join(sourcedata,

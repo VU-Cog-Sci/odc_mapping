@@ -7,7 +7,7 @@ from bids import BIDSLayout
 from nilearn import image
 
 derivatives = '/data/odc/derivatives'
-subject = 'tr'
+subject = '06'
 pc_subject = 'odc.{}'.format(subject)
 session = 'odc'
 

@@ -6,7 +6,7 @@ import numpy as np
 
 derivatives = '/data/odc/derivatives'
 
-subject = 'tr'
+subject = '06'
 session = 'odc'
 depth = .571
 

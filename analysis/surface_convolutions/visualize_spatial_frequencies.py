@@ -118,7 +118,7 @@ def main(derivatives,
 
     transform = cortex.xfm.Transform(np.identity(4), t1w)
 
-    if not np.in1d(subject, ['bm', 'tk']):
+    if not np.in1d(subject, ['01', '06']):
         transform.save(pc_subject, 'identity.t1w', 'magnet')
 
 

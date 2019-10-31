@@ -5,10 +5,11 @@ import os.path as op
 from utils import get_bids_file
 import numpy as np
 import matplotlib
-matplotlib.use("TkAgg")
+# matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from nilearn import image
-from bids import BIDSLayout
+# from bids import BIDSLayout
+from bids.grabbids import BIDSLayout
 import matplotlib.colors as colors
 from nilearn import surface
 
@@ -33,7 +34,7 @@ def main(sourcedata,
 
     #zmap_task = '{derivatives}/modelfitting/glm7/sub-{subject}/ses-{session}/sub-{subject}_ses-{session}_left_over_right_task_zmap.nii.gz'.format(**locals())
 
-    if subject == 'bm':
+    if subject == '01':
         mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-checkerboard_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
     else:
         mean_epi = '{derivatives}/spynoza/sub-{subject}/ses-{session}/func/sub-{subject}_ses-{session}_task-fixation_acq-07_run-03_reference{trans_str}.nii.gz'.format(**locals())
@@ -59,11 +60,8 @@ def main(sourcedata,
     t1w = cortex.db.get_anat(pc_subject)
 
     zmap = image.resample_to_img(zmap, t1w)
-    #mean_epi = image.resample_to_img(mean_epi, t1w)
 
     transform = cortex.xfm.Transform(np.identity(4), t1w)
-    #if not np.in1d(subject, ['bm', 'tk']):
-        #transform.save(pc_subject, 'identity.t1w', 'magnet')
 
 
     mask = image.math_img('np.abs(zmap)', zmap=zmap)

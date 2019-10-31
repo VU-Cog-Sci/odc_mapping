@@ -92,7 +92,7 @@ def main(derivatives,
 
 
     # Filter out vertices where one or more runs/depths has std of 0
-    if subject not in ['bm']:
+    if subject not in ['01']:
         ix = (~(((results.groupby('run').std() == 0).any(0)))).groupby('vertex').all()
         results = results.loc[:, results.columns.get_level_values('vertex').isin(ix[ix].index)]
 
