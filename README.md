@@ -15,4 +15,8 @@ You can then use docker-compose to start a Docker container that contains all th
 
 # Data
 All the raw data, as well as some key derivatives can be found on OpenNeuro:
+
 https://openneuro.org/datasets/ds002295
+
+# Support
+If you have any questions, please don't hesitate to contact us at Gilles.de.Hollander@gmail.com or tknapen@gmail.com.
